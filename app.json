@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "SipAcademy",
-    "slug": "SipAcademy",
+    "slug": "spic-academy",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -19,10 +19,18 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.sameht.SipAcademy",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "e5f00eff-a59e-4547-a01b-847bb6657249"
+      }
+    },
+    "owner": "yahyaghdemsi"
   }
 }
