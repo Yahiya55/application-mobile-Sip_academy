@@ -15,9 +15,10 @@ import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { WebView } from "react-native-webview";
 import { ActualiteService } from "../service/actualiteservice";
+import { fetchVideos, getVideoUrl } from "../service/VideoService";
 import { FormationsService } from "../service/FormationService";
-import { getSessions } from "../service/SessionService"; // Importez le service de sessions
-import { IMAGE_BASE_URL, IMAGE_BASE_URL1, IMAGE_BASE_URL2 } from "@env"; // Importez les variables d'environnement
+import { getSessions } from "../service/SessionService";
+import { IMAGE_BASE_URL, IMAGE_BASE_URL1, IMAGE_BASE_URL2 } from "@env";
 import { formaterDate, formaterDateTime } from "../utils/dateFormater";
 
 const photos = [
@@ -35,24 +36,12 @@ const photos = [
   },
 ];
 
-const videos = [
-  {
-    id: "1",
-    title: "Springboot - C'est quoi ?",
-    url: "https://www.youtube.com/embed/lXec-HEZjqs",
-  },
-  {
-    id: "2",
-    title: "C'est quoi Angular ?",
-    url: "https://www.youtube.com/embed/Vx457brS02Q",
-  },
-];
-
 const HomeScreen = () => {
   const navigation = useNavigation();
   const [formations, setFormations] = useState([]);
   const [actualites, setActualites] = useState([]);
-  const [sessions, setSessions] = useState([]); // État pour les sessions
+  const [sessions, setSessions] = useState([]);
+  const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -71,6 +60,11 @@ const HomeScreen = () => {
         // Récupérer les sessions
         const sessionsData = await getSessions();
         setSessions(sessionsData["hydra:member"] || []);
+
+        // Récupérer les vidéos
+        const videosData = await fetchVideos();
+        console.log("Vidéos récupérées:", videosData);
+        setVideos(videosData || []);
       } catch (error) {
         console.error("Erreur lors de la récupération des données:", error);
       } finally {
@@ -154,7 +148,65 @@ const HomeScreen = () => {
     </TouchableOpacity>
   );
 
-  const renderSection = (title, data, renderItem) => {
+  // Fonction pour générer une couleur aléatoire pour les vignettes de vidéo
+  const getRandomColor = () => {
+    const colors = [
+      "#3498db",
+      "#2ecc71",
+      "#e74c3c",
+      "#f39c12",
+      "#9b59b6",
+      "#1abc9c",
+    ];
+    return colors[Math.floor(Math.random() * colors.length)];
+  };
+
+  const renderVideoItem = ({ item }) => {
+    const backgroundColor = getRandomColor();
+
+    return (
+      <TouchableOpacity
+        style={styles.videoItem}
+        onPress={() => {
+          console.log("Navigation vers VideoPlayer avec:", item);
+          const videoUrl = getVideoUrl(item.video);
+          console.log("URL vidéo:", videoUrl);
+
+          navigation.navigate("VideoPlayer", {
+            videoUrl: videoUrl,
+            videoTitle: item.titre || "Sans titre",
+            videoDescription: item.description || "",
+            videoAuthor: item.auteur || "",
+            videoDate: item.date || "",
+          });
+        }}
+      >
+        <View style={styles.videoCard}>
+          {/* Placeholder coloré avec icône play */}
+          <View style={[styles.videoThumbnail, { backgroundColor }]}>
+            <View style={styles.playButton}>
+              <Ionicons name="play" size={30} color="white" />
+            </View>
+            {/* Premier caractère du titre comme initiale sur le thumbnail */}
+            <Text style={styles.thumbnailText}>
+              {item.titre ? item.titre.charAt(0).toUpperCase() : "V"}
+            </Text>
+          </View>
+          <View style={styles.videoInfo}>
+            <Text style={styles.videoTitle} numberOfLines={1}>
+              {item.titre || "Sans titre"}
+            </Text>
+            <Text style={styles.videoAuthor} numberOfLines={1}>
+              {item.auteur || ""}
+            </Text>
+            <Text style={styles.videoDate}>{item.date || ""}</Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderSection = (title, data, renderItem, navigateTo) => {
     if (!data || data.length === 0) {
       return null; // Ne pas afficher les sections vides
     }
@@ -165,12 +217,8 @@ const HomeScreen = () => {
           <Text style={styles.sectionTitle}>{title}</Text>
           <TouchableOpacity
             onPress={() => {
-              if (title === "Formations") {
-                navigation.navigate("Formations");
-              } else if (title === "Sessions") {
-                navigation.navigate("Sessions");
-              } else if (title === "Actualités") {
-                navigation.navigate("Actualites");
+              if (navigateTo) {
+                navigation.navigate(navigateTo);
               }
             }}
           >
@@ -187,18 +235,6 @@ const HomeScreen = () => {
       </View>
     );
   };
-
-  const renderVideoItem = ({ item }) => (
-    <TouchableOpacity
-      onPress={() => navigation.navigate("VideoPlayer", { videoUrl: item.url })}
-      style={styles.videoCard}
-    >
-      <View style={styles.iconContainer}>
-        <Ionicons name="play-circle-outline" size={70} color="#ffffff" />
-      </View>
-      <Text style={styles.videoTitle}>{item.title}</Text>
-    </TouchableOpacity>
-  );
 
   if (loading) {
     return (
@@ -228,7 +264,7 @@ const HomeScreen = () => {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: 60 }]}
       >
         {/* Photos (statique) */}
-        <View style={styles.container}>
+        <View style={styles.photoContainer}>
           <FlatList
             data={photos}
             horizontal
@@ -279,38 +315,42 @@ const HomeScreen = () => {
             </View>
           </View>
         </Modal>
+
         {/* Formations (dynamique) */}
-        {renderSection("Formations", formations, renderFormationItem)}
+        {renderSection(
+          "Formations",
+          formations,
+          renderFormationItem,
+          "Formations"
+        )}
 
         {/* Sessions (dynamique) */}
-        {renderSection("Sessions", sessions, renderSessionItem)}
+        {renderSection("Sessions", sessions, renderSessionItem, "Sessions")}
 
         {/* Actualités (dynamique) */}
-        {renderSection("Actualités", actualites, renderActualiteItem)}
+        {renderSection(
+          "Actualités",
+          actualites,
+          renderActualiteItem,
+          "Actualites"
+        )}
 
-        {/* Vidéos (statique) */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>📺 Vidéos</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAll}>VOIR TOUT &gt;</Text>
-            </TouchableOpacity>
-          </View>
-          <FlatList
-            data={videos}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            renderItem={renderVideoItem}
-            keyExtractor={(item) => item.id}
-          />
-        </View>
+        {/* Vidéos (dynamique) */}
+        {renderSection("📺 Vidéos", videos, renderVideoItem, "VideoGallery")}
       </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+  photoContainer: {
+    marginTop: 10,
+    marginBottom: 10,
+  },
   fixedHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -325,7 +365,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: { paddingTop: 60 },
   logo: { width: 150, height: 40, resizeMode: "contain" },
-  section: { marginVertical: 20, paddingHorizontal: 15 },
+  section: { marginVertical: 15, paddingHorizontal: 15 },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -341,7 +381,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#eee",
     width: 310,
     height: 200,
-    position: "relative", // Nécessaire pour positionner les enfants en absolu
+    position: "relative",
   },
   itemImage: {
     objectFit: "fill",
@@ -357,7 +397,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 5,
-    zIndex: 1, // Assure que la date est au-dessus de l'image
+    zIndex: 1,
   },
   itemDate: {
     color: "#f4a100",
@@ -368,14 +408,14 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.7)", // Fond semi-transparent
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
     padding: 10,
-    zIndex: 1, // Assure que le titre est au-dessus de l'image
+    zIndex: 1,
   },
   itemTitle: {
-    color: "#fff", // Texte en blanc
+    color: "#fff",
     fontWeight: "bold",
-    fontSize: 16, // Taille du texte
+    fontSize: 16,
   },
   actualiteItem: {
     marginRight: 15,
@@ -392,7 +432,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   actualiteContent: { position: "absolute", bottom: 10, left: 10, padding: 10 },
-  actualiteTitle: { color: "#203a72", fontWeight: "bold" }, // Titre en bleu
+  actualiteTitle: { color: "#203a72", fontWeight: "bold" },
   actualiteDate: { color: "#fff", fontSize: 12 },
   sessionItem: {
     marginRight: 15,
@@ -410,41 +450,73 @@ const styles = StyleSheet.create({
   },
   sessionInfo: { padding: 10 },
   sessionTitle: {
-    sessionTitle: {
-      fontSize: 14,
-      fontWeight: "bold",
-      color: "#203a72", // Couleur du texte
-    },
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#203a72",
   },
   sessionTime: { fontSize: 12 },
   sessionMode: { fontSize: 12, color: "gray" },
-  videoItem: { marginBottom: 15 },
-  video: { width: "100%", height: 200 },
-  videoTitle: { textAlign: "center", marginTop: 5, fontWeight: "bold" },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },
-  photoList: { marginBottom: 20 },
+  photoList: { marginBottom: 10 },
   photoItem: { marginRight: 10 },
   photoImage: { width: 300, height: 150, borderRadius: 10 },
-
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
+  videoItem: {
+    marginRight: 15,
+    width: 230, // Largeur qui permet de voir une vidéo et demie
   },
-  galleryContainer: {
-    padding: 4,
+  videoCard: {
+    borderRadius: 10,
+    overflow: "hidden",
+    backgroundColor: "white",
+    height: 200,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  galleryItem: {
-    flex: 1 / 3,
-    aspectRatio: 1,
-    padding: 4,
+  videoThumbnail: {
+    height: 130,
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
   },
-  thumbnailImage: {
-    flex: 1,
-    borderRadius: 8,
+  playButton: {
+    position: "absolute",
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 2,
+  },
+  thumbnailText: {
+    fontSize: 40,
+    fontWeight: "bold",
+    color: "rgba(255, 255, 255, 0.5)",
+  },
+  videoInfo: {
+    padding: 10,
+  },
+  videoTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#1f3971",
+    marginBottom: 4,
+  },
+  videoAuthor: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 2,
+  },
+  videoDate: {
+    fontSize: 12,
+    color: "#999",
   },
   modalContainer: {
     flex: 1,
@@ -492,36 +564,6 @@ const styles = StyleSheet.create({
     borderColor: "#fff",
     borderWidth: 2,
     opacity: 1,
-  },
-  videoCard: {
-    alignItems: "center",
-    marginHorizontal: 15,
-    marginBottom: 20,
-    backgroundColor: "#203a72", // Fond de la carte (personnalisez)
-    borderRadius: 15,
-    padding: 20,
-    width: 150,
-    elevation: 5, // Pour donner une ombre légère (Android)
-    shadowColor: "#000", // Ombre sur iOS
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    justifyContent: "center",
-    height: 170,
-  },
-  iconContainer: {
-    backgroundColor: "#f4a100", // Couleur d'arrière-plan de l'icône
-    borderRadius: 50,
-    padding: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  videoTitle: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "bold",
-    textAlign: "center",
   },
 });
 

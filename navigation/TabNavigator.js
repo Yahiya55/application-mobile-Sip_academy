@@ -7,6 +7,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Import du LoadingScreen
 import LoadingScreen from "../screens/LoadingScreen";
+import MesSessionsScreen from "../screens/MesSessionsScreen";
+
 
 // Mode Général (Non-connecté)
 import WelcomeScreen from "../screens/WelcomeScreen";
@@ -22,6 +24,7 @@ import SessionDetailsScreen from "../screens/SessionDetailsScreen";
 import ActualitesScreen from "../screens/ActualitesScreen";
 import ActualiteDetailsScreen from "../screens/ActualiteDetailsScreen";
 import VideoPlayerScreen from "../screens/VideoPlayerScreen";
+import VideoGalleryScreen from "../screens/VideoGalleryScreen"; // Nouvel import
 import SessionsScreen from "../screens/SessionsScreen";
 import ContactScreen from "../screens/ContactScreen";
 import PersonalProfileScreen from "../screens/PersonalProfileScreen";
@@ -36,6 +39,7 @@ const { width } = Dimensions.get("window");
 const HomeStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="Accueil" component={HomeScreen} />
+    <Stack.Screen name="VideoGallery" component={VideoGalleryScreen} /> 
     <Stack.Screen name="VideoPlayer" component={VideoPlayerScreen} />
     <Stack.Screen name="Sessions" component={SessionsScreen} />
     <Stack.Screen name="Actualites" component={ActualitesScreen} />
@@ -54,6 +58,18 @@ const HomeStack = () => (
         title: route.params?.actualite?.title || "Détails Actualité",
       })}
     />
+    <Stack.Screen
+      name="SessionDetails"
+      component={SessionDetailsScreen}
+      options={({ route }) => ({
+        title: route.params?.session?.title || "Détails Session",
+      })}
+    />
+  </Stack.Navigator>
+);
+const MesSessionsStack = () => (
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="MesSessions" component={MesSessionsScreen} />
     <Stack.Screen
       name="SessionDetails"
       component={SessionDetailsScreen}
@@ -182,6 +198,31 @@ const GuestTabNavigator = ({ isGuestMode }) => (
 const ConnectedTabNavigator = () => (
   <Tab.Navigator {...tabNavigatorOptions} initialRouteName="Home">
     <Tab.Screen name="Home" component={HomeStack} />
+    <Tab.Screen name="Sessions" component={SessionsStack} />
+    <Tab.Screen
+      name="Mes Sessions"
+      component={MesSessionsStack}
+      options={{
+        tabBarIcon: ({ focused, color, size }) => {
+          const iconName = focused ? "bookmark" : "bookmark-outline";
+          return (
+            <View
+              style={[
+                styles.iconContainer,
+                focused && styles.activeIconContainer,
+              ]}
+            >
+              <Ionicons
+                name={iconName}
+                color={color}
+                size={focused ? 32 : 28}
+                style={styles.icon}
+              />
+            </View>
+          );
+        },
+      }}
+    />
     <Tab.Screen name="Mon Profil" component={PersonalProfileScreen} />
   </Tab.Navigator>
 );

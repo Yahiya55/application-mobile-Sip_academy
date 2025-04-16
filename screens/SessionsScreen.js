@@ -42,13 +42,14 @@ const SessionsScreen = () => {
 
   const today = new Date().toISOString().split("T")[0];
 
-  const upcomingSessions = sessions.filter(
-    (session) => session.starttime.split("T")[0] > today
-  );
+  // Filtrer puis trier les sessions par date décroissante (plus récente en premier)
+  const upcomingSessions = sessions
+    .filter((session) => session.starttime.split("T")[0] > today)
+    .sort((a, b) => new Date(b.starttime) - new Date(a.starttime));
 
-  const pastSessions = sessions.filter(
-    (session) => session.starttime.split("T")[0] <= today
-  );
+  const pastSessions = sessions
+    .filter((session) => session.starttime.split("T")[0] <= today)
+    .sort((a, b) => new Date(b.starttime) - new Date(a.starttime));
 
   const filteredSessions =
     selectedCategory === "Prochaines" ? upcomingSessions : pastSessions;
@@ -241,7 +242,7 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   image: {
-    objectFit:"fill",
+    objectFit: "fill",
     width: "100%",
     height: 160,
     borderTopLeftRadius: 10,

@@ -1,12 +1,24 @@
 import axios from "axios";
-import { API_BASE_URL } from "@env";
+import { API_BASE_URL3 , API_BASE_URL4} from "@env";
 
-export const getVideos = async () => {
+// Fonction pour récupérer les vidéos
+export const fetchVideos = async () => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/videos`);
-    return response.data["hydra:member"];
+    console.log("Récupération des vidéos depuis:", `${API_BASE_URL3}/videos`);
+    const response = await axios.get(`${API_BASE_URL3}/videos`);
+    console.log("Données vidéos reçues:", response.data);
+    return response.data;
   } catch (error) {
-    console.error("Erreur dans getVideos:", error.message || error);
-    throw new Error("Erreur lors de la récupération des vidéos");
+    console.error("Erreur lors de la récupération des vidéos:", error);
+    throw error;
   }
+};
+
+// Fonction pour générer l'URL complète de la vidéo
+export const getVideoUrl = (video) => {
+  // Encoder l'URL pour gérer les espaces et caractères spéciaux
+  const encodedVideo = encodeURIComponent(video);
+  const url = `${API_BASE_URL4}/uploads/video/${encodedVideo}`;
+  console.log("URL vidéo générée:", url);
+  return url;
 };
