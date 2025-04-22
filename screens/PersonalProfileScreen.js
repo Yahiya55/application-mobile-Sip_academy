@@ -9,6 +9,8 @@ import {
   ScrollView,
   SafeAreaView,
   Image,
+  FlatList,
+  Linking,
 } from "react-native";
 import { getUserById } from "../service/UserService";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -17,7 +19,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { DevSettings } from "react-native";
 import { CommonActions } from "@react-navigation/native";
 
-import { Portal, Dialog, Button, Snackbar } from "react-native-paper";
+import {
+  Portal,
+  Dialog,
+  Button,
+  Snackbar,
+  Card,
+  DataTable,
+} from "react-native-paper";
 
 const PersonalProfileScreen = () => {
   const [user, setUser] = useState(null);
@@ -33,6 +42,9 @@ const PersonalProfileScreen = () => {
   const [logoutDialogVisible, setLogoutDialogVisible] = useState(false);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
+
+  // États pour l'affichage des tableaux
+  const [activeTab, setActiveTab] = useState("experiences");
 
   const navigation = useNavigation();
 
@@ -151,6 +163,127 @@ const PersonalProfileScreen = () => {
     );
   };
 
+  // Ouvrir le CV si disponible
+  const openCV = () => {
+    if (user && user.cv && user.cv !== "-") {
+      Linking.openURL(user.cv).catch(() => {
+        setSnackbarMessage("Impossible d'ouvrir le CV");
+        setSnackbarVisible(true);
+      });
+    } else {
+      setSnackbarMessage("Aucun CV disponible");
+      setSnackbarVisible(true);
+    }
+  };
+
+  // Récupérer l'URL de l'image de profil
+  const getProfileImageUrl = () => {
+    // URL de base pour les images
+    const baseUrl = "https://mobile.sip-academy.com/uploads/coach/";
+
+    // Si l'utilisateur a un logo et que ce logo n'est pas "-"
+    if (user && user.logo && user.logo !== "-") {
+      return `${baseUrl}${user.logo}`;
+    }
+
+    // URL de l'image par défaut
+    return `${baseUrl}student-68077164d5a8c.jpg`;
+  };
+
+  // Rendu de la section des tableaux en fonction de l'onglet actif
+  const renderTabContent = () => {
+    if (!user) return null;
+
+    switch (activeTab) {
+      case "experiences":
+        return (
+          <View style={styles.tableContainer}>
+            {user.experiences && user.experiences.length > 0 ? (
+              <DataTable>
+                <DataTable.Header>
+                  <DataTable.Title>Poste</DataTable.Title>
+                  <DataTable.Title>Entreprise</DataTable.Title>
+                  <DataTable.Title>Période</DataTable.Title>
+                </DataTable.Header>
+                {user.experiences.map((exp, index) => (
+                  <DataTable.Row key={index}>
+                    <DataTable.Cell>{exp.poste || "N/A"}</DataTable.Cell>
+                    <DataTable.Cell>{exp.entreprise || "N/A"}</DataTable.Cell>
+                    <DataTable.Cell>{`${exp.dateDebut || ""} - ${
+                      exp.dateFin || "Présent"
+                    }`}</DataTable.Cell>
+                  </DataTable.Row>
+                ))}
+              </DataTable>
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="briefcase-outline" size={40} color="#ccc" />
+                <Text style={styles.emptyText}>Aucune expérience ajoutée</Text>
+              </View>
+            )}
+          </View>
+        );
+      case "certifications":
+        return (
+          <View style={styles.tableContainer}>
+            {user.certifs && user.certifs.length > 0 ? (
+              <DataTable>
+                <DataTable.Header>
+                  <DataTable.Title>Titre</DataTable.Title>
+                  <DataTable.Title>Organisme</DataTable.Title>
+                  <DataTable.Title>Date</DataTable.Title>
+                </DataTable.Header>
+                {user.certifs.map((cert, index) => (
+                  <DataTable.Row key={index}>
+                    <DataTable.Cell>{cert.titre || "N/A"}</DataTable.Cell>
+                    <DataTable.Cell>{cert.organisme || "N/A"}</DataTable.Cell>
+                    <DataTable.Cell>{cert.date || "N/A"}</DataTable.Cell>
+                  </DataTable.Row>
+                ))}
+              </DataTable>
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="ribbon-outline" size={40} color="#ccc" />
+                <Text style={styles.emptyText}>
+                  Aucune certification ajoutée
+                </Text>
+              </View>
+            )}
+          </View>
+        );
+      case "diplomes":
+        return (
+          <View style={styles.tableContainer}>
+            {user.diplomes && user.diplomes.length > 0 ? (
+              <DataTable>
+                <DataTable.Header>
+                  <DataTable.Title>Diplôme</DataTable.Title>
+                  <DataTable.Title>Établissement</DataTable.Title>
+                  <DataTable.Title>Année</DataTable.Title>
+                </DataTable.Header>
+                {user.diplomes.map((diplome, index) => (
+                  <DataTable.Row key={index}>
+                    <DataTable.Cell>{diplome.titre || "N/A"}</DataTable.Cell>
+                    <DataTable.Cell>
+                      {diplome.etablissement || "N/A"}
+                    </DataTable.Cell>
+                    <DataTable.Cell>{diplome.annee || "N/A"}</DataTable.Cell>
+                  </DataTable.Row>
+                ))}
+              </DataTable>
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="school-outline" size={40} color="#ccc" />
+                <Text style={styles.emptyText}>Aucun diplôme ajouté</Text>
+              </View>
+            )}
+          </View>
+        );
+      default:
+        return null;
+    }
+  };
+
   // Afficher le loading
   if (loading) {
     return (
@@ -260,14 +393,56 @@ const PersonalProfileScreen = () => {
         <View style={styles.profileImageContainer}>
           <Image
             source={{
-              uri: "https://mobile.sip-academy.com/uploads/coach/avatar-67f3d2d56c30b.png",
+              uri: getProfileImageUrl(),
             }}
             style={styles.profileImage}
           />
           <Text style={styles.userName}>{`${user.prenom} ${user.nom}`}</Text>
         </View>
 
+        {/* Biographie Section */}
         <View style={styles.formContainer}>
+          <Card style={styles.card}>
+            <Card.Content>
+              <View style={styles.cardHeader}>
+                <Text style={styles.sectionTitle}>Biographie</Text>
+                <Ionicons name="book-outline" size={22} color="#1F3971" />
+              </View>
+              <Text style={styles.biographyText}>
+                {user.Biographie && user.Biographie !== "-"
+                  ? user.Biographie
+                  : "Aucune biographie disponible."}
+              </Text>
+            </Card.Content>
+          </Card>
+
+          {/* CV Section */}
+          <Card style={styles.card}>
+            <Card.Content>
+              <View style={styles.cardHeader}>
+                <Text style={styles.sectionTitle}>Curriculum Vitae</Text>
+                <Ionicons
+                  name="document-text-outline"
+                  size={22}
+                  color="#1F3971"
+                />
+              </View>
+              {user.cv && user.cv !== "-" ? (
+                <TouchableOpacity style={styles.cvButton} onPress={openCV}>
+                  <Ionicons
+                    name="eye-outline"
+                    size={20}
+                    color="#fff"
+                    style={styles.btnIcon}
+                  />
+                  <Text style={styles.cvButtonText}>Voir mon CV</Text>
+                </TouchableOpacity>
+              ) : (
+                <Text style={styles.emptyText}>Aucun CV disponible.</Text>
+              )}
+            </Card.Content>
+          </Card>
+
           <Text style={styles.sectionTitle}>Informations personnelles</Text>
 
           <View style={styles.inputGroup}>
@@ -317,7 +492,7 @@ const PersonalProfileScreen = () => {
               />
               <TextInput
                 style={styles.input}
-                value={user.tel1 || "Non spécifié"}
+                value={user.tel1 !== "-" ? user.tel1 : "Non spécifié"}
                 editable={false}
               />
             </View>
@@ -334,7 +509,7 @@ const PersonalProfileScreen = () => {
               />
               <TextInput
                 style={styles.input}
-                value={user.tel2 || "Non spécifié"}
+                value={user.tel2 !== "-" ? user.tel2 : "Non spécifié"}
                 editable={false}
               />
             </View>
@@ -351,7 +526,7 @@ const PersonalProfileScreen = () => {
               />
               <TextInput
                 style={styles.input}
-                value={user.adresse || "Non spécifiée"}
+                value={user.adresse !== "-" ? user.adresse : "Non spécifiée"}
                 editable={false}
                 multiline={true}
               />
@@ -371,7 +546,7 @@ const PersonalProfileScreen = () => {
               />
               <TextInput
                 style={styles.input}
-                value={user.linkedin || "Non spécifié"}
+                value={user.linkedin !== "-" ? user.linkedin : "Non spécifié"}
                 editable={false}
               />
             </View>
@@ -388,11 +563,92 @@ const PersonalProfileScreen = () => {
               />
               <TextInput
                 style={styles.input}
-                value={user.facebook || "Non spécifié"}
+                value={user.facebook !== "-" ? user.facebook : "Non spécifié"}
                 editable={false}
               />
             </View>
           </View>
+
+          {/* Tableau pour les expériences, certifications et diplômes */}
+          <Card style={styles.card}>
+            <Card.Content>
+              <View style={styles.cardHeader}>
+                <Text style={styles.sectionTitle}>Mon parcours</Text>
+                <Ionicons name="trail-sign-outline" size={22} color="#1F3971" />
+              </View>
+
+              <View style={styles.tabContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.tabButton,
+                    activeTab === "experiences" && styles.activeTabButton,
+                  ]}
+                  onPress={() => setActiveTab("experiences")}
+                >
+                  <Ionicons
+                    name="briefcase-outline"
+                    size={18}
+                    color={activeTab === "experiences" ? "#fff" : "#1F3971"}
+                  />
+                  <Text
+                    style={[
+                      styles.tabButtonText,
+                      activeTab === "experiences" && styles.activeTabButtonText,
+                    ]}
+                  >
+                    Expériences
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.tabButton,
+                    activeTab === "certifications" && styles.activeTabButton,
+                  ]}
+                  onPress={() => setActiveTab("certifications")}
+                >
+                  <Ionicons
+                    name="ribbon-outline"
+                    size={18}
+                    color={activeTab === "certifications" ? "#fff" : "#1F3971"}
+                  />
+                  <Text
+                    style={[
+                      styles.tabButtonText,
+                      activeTab === "certifications" &&
+                        styles.activeTabButtonText,
+                    ]}
+                  >
+                    Certifications
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.tabButton,
+                    activeTab === "diplomes" && styles.activeTabButton,
+                  ]}
+                  onPress={() => setActiveTab("diplomes")}
+                >
+                  <Ionicons
+                    name="school-outline"
+                    size={18}
+                    color={activeTab === "diplomes" ? "#fff" : "#1F3971"}
+                  />
+                  <Text
+                    style={[
+                      styles.tabButtonText,
+                      activeTab === "diplomes" && styles.activeTabButtonText,
+                    ]}
+                  >
+                    Diplômes
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {renderTabContent()}
+            </Card.Content>
+          </Card>
         </View>
       </ScrollView>
 
@@ -550,11 +806,48 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     paddingHorizontal: 20,
+    paddingBottom: 30,
+  },
+  card: {
+    marginVertical: 15,
+    elevation: 2,
+    borderRadius: 10,
+  },
+  cardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  biographyText: {
+    fontSize: 14,
+    color: "#555",
+    lineHeight: 20,
+    textAlign: "justify",
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: "bold",
     marginVertical: 10,
+    color: "#1F3971",
+  },
+  cvButton: {
+    flexDirection: "row",
+    backgroundColor: "#1F3971",
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 5,
+  },
+  cvButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  btnIcon: {
+    marginRight: 8,
   },
   inputGroup: {
     marginBottom: 20,
@@ -581,6 +874,51 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: "#333",
+  },
+  tabContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginVertical: 15,
+  },
+  tabButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#1F3971",
+    flex: 1,
+    marginHorizontal: 5,
+    justifyContent: "center",
+  },
+  activeTabButton: {
+    backgroundColor: "#1F3971",
+  },
+  tabButtonText: {
+    fontSize: 12,
+    color: "#1F3971",
+    marginLeft: 5,
+  },
+  activeTabButtonText: {
+    color: "#fff",
+  },
+  tableContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 10,
+  },
+  emptyContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 30,
+  },
+  emptyText: {
+    marginTop: 10,
+    color: "#999",
+    fontSize: 14,
+    textAlign: "center",
   },
 });
 
