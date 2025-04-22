@@ -5,12 +5,9 @@ import {
   StyleSheet,
   ActivityIndicator,
   TouchableOpacity,
-  TextInput,
-  ScrollView,
-  SafeAreaView,
   Image,
-  FlatList,
-  Linking,
+  SafeAreaView,
+  ScrollView,
 } from "react-native";
 import { getUserById } from "../service/UserService";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -18,15 +15,7 @@ import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { DevSettings } from "react-native";
 import { CommonActions } from "@react-navigation/native";
-
-import {
-  Portal,
-  Dialog,
-  Button,
-  Snackbar,
-  Card,
-  DataTable,
-} from "react-native-paper";
+import { Portal, Dialog, Button, Snackbar } from "react-native-paper";
 
 const PersonalProfileScreen = () => {
   const [user, setUser] = useState(null);
@@ -39,12 +28,8 @@ const PersonalProfileScreen = () => {
   const [guestModeDialogVisible, setGuestModeDialogVisible] = useState(false);
   const [expiredSessionDialogVisible, setExpiredSessionDialogVisible] =
     useState(false);
-  const [logoutDialogVisible, setLogoutDialogVisible] = useState(false);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
-
-  // États pour l'affichage des tableaux
-  const [activeTab, setActiveTab] = useState("experiences");
 
   const navigation = useNavigation();
 
@@ -63,19 +48,16 @@ const PersonalProfileScreen = () => {
         const storedToken = await AsyncStorage.getItem("token");
         const guestMode = await AsyncStorage.getItem("guestMode");
 
-        // Vérifier d'abord s'il y a un token valide
         if (storedToken) {
           setToken(storedToken);
-          setIsGuestMode(false); // Assurer que le mode invité est désactivé si un token existe
-          return; // Sortir de la fonction car le token existe
+          setIsGuestMode(false);
+          return;
         }
 
-        // Si aucun token, vérifier le mode invité
         if (guestMode === "true") {
           setIsGuestMode(true);
           setToken(null);
         } else {
-          // Si ni token ni mode invité, il y a une erreur
           setError("Token d'authentification manquant.");
         }
       } catch (err) {
@@ -83,7 +65,7 @@ const PersonalProfileScreen = () => {
         setError("Erreur lors de la vérification de l'authentification.");
       } finally {
         if (!token) {
-          setLoading(false); // Arrêter le chargement si pas de token
+          setLoading(false);
         }
       }
     };
@@ -112,7 +94,6 @@ const PersonalProfileScreen = () => {
         }
       } catch (err) {
         if (err.message && err.message.includes("Expired JWT Token")) {
-          // Afficher l'alerte Material UI pour la session expirée
           setExpiredSessionDialogVisible(true);
         } else {
           setError("Erreur lors de la récupération des données utilisateur.");
@@ -126,162 +107,38 @@ const PersonalProfileScreen = () => {
     fetchUserProfile();
   }, [token]);
 
-  const reloadApp = () => {
-    console.log("Rechargement de l'application...");
-    DevSettings.reload();
+  // Récupérer l'URL de l'image de profil
+  const getProfileImageUrl = () => {
+    const baseUrl = "https://mobile.sip-academy.com/uploads/coach/";
+
+    if (user && user.logo && user.logo !== "-") {
+      return `${baseUrl}${user.logo}`;
+    }
+
+    return `${baseUrl}student-68077164d5a8c.jpg`;
   };
 
-  const handleLogout = async () => {
-    try {
-      console.log("Tentative de déconnexion...");
-      await AsyncStorage.removeItem("token");
-      console.log("Token supprimé!");
+  // Navigation vers les sections
+  const navigateToDetailsProfile = () => {
+    navigation.navigate("DetailsProfil", { user });
+  };
 
-      // Afficher l'alerte de déconnexion réussie
-      setSnackbarMessage("Déconnexion réussie");
-      setSnackbarVisible(true);
+  const navigateToParcours = () => {
+    navigation.navigate("Parcours", { user });
+  };
 
-      // Recharger l'application après un court délai
-      setTimeout(() => {
-        reloadApp();
-      }, 1500);
-    } catch (err) {
-      console.error("Erreur lors de la déconnexion:", err);
-      setSnackbarMessage("Impossible de vous déconnecter. Veuillez réessayer.");
-      setSnackbarVisible(true);
-    }
+  const navigateToDeconnexion = () => {
+    navigation.navigate("Deconnexion");
   };
 
   // Navigation correcte vers l'écran de connexion à partir du mode invité
   const navigateToLogin = () => {
-    // Navigation vers l'écran de connexion dans le AuthStack
     navigation.dispatch(
       CommonActions.reset({
         index: 0,
         routes: [{ name: "Auth" }],
       })
     );
-  };
-
-  // Ouvrir le CV si disponible
-  const openCV = () => {
-    if (user && user.cv && user.cv !== "-") {
-      Linking.openURL(user.cv).catch(() => {
-        setSnackbarMessage("Impossible d'ouvrir le CV");
-        setSnackbarVisible(true);
-      });
-    } else {
-      setSnackbarMessage("Aucun CV disponible");
-      setSnackbarVisible(true);
-    }
-  };
-
-  // Récupérer l'URL de l'image de profil
-  const getProfileImageUrl = () => {
-    // URL de base pour les images
-    const baseUrl = "https://mobile.sip-academy.com/uploads/coach/";
-
-    // Si l'utilisateur a un logo et que ce logo n'est pas "-"
-    if (user && user.logo && user.logo !== "-") {
-      return `${baseUrl}${user.logo}`;
-    }
-
-    // URL de l'image par défaut
-    return `${baseUrl}student-68077164d5a8c.jpg`;
-  };
-
-  // Rendu de la section des tableaux en fonction de l'onglet actif
-  const renderTabContent = () => {
-    if (!user) return null;
-
-    switch (activeTab) {
-      case "experiences":
-        return (
-          <View style={styles.tableContainer}>
-            {user.experiences && user.experiences.length > 0 ? (
-              <DataTable>
-                <DataTable.Header>
-                  <DataTable.Title>Poste</DataTable.Title>
-                  <DataTable.Title>Entreprise</DataTable.Title>
-                  <DataTable.Title>Période</DataTable.Title>
-                </DataTable.Header>
-                {user.experiences.map((exp, index) => (
-                  <DataTable.Row key={index}>
-                    <DataTable.Cell>{exp.poste || "N/A"}</DataTable.Cell>
-                    <DataTable.Cell>{exp.entreprise || "N/A"}</DataTable.Cell>
-                    <DataTable.Cell>{`${exp.dateDebut || ""} - ${
-                      exp.dateFin || "Présent"
-                    }`}</DataTable.Cell>
-                  </DataTable.Row>
-                ))}
-              </DataTable>
-            ) : (
-              <View style={styles.emptyContainer}>
-                <Ionicons name="briefcase-outline" size={40} color="#ccc" />
-                <Text style={styles.emptyText}>Aucune expérience ajoutée</Text>
-              </View>
-            )}
-          </View>
-        );
-      case "certifications":
-        return (
-          <View style={styles.tableContainer}>
-            {user.certifs && user.certifs.length > 0 ? (
-              <DataTable>
-                <DataTable.Header>
-                  <DataTable.Title>Titre</DataTable.Title>
-                  <DataTable.Title>Organisme</DataTable.Title>
-                  <DataTable.Title>Date</DataTable.Title>
-                </DataTable.Header>
-                {user.certifs.map((cert, index) => (
-                  <DataTable.Row key={index}>
-                    <DataTable.Cell>{cert.titre || "N/A"}</DataTable.Cell>
-                    <DataTable.Cell>{cert.organisme || "N/A"}</DataTable.Cell>
-                    <DataTable.Cell>{cert.date || "N/A"}</DataTable.Cell>
-                  </DataTable.Row>
-                ))}
-              </DataTable>
-            ) : (
-              <View style={styles.emptyContainer}>
-                <Ionicons name="ribbon-outline" size={40} color="#ccc" />
-                <Text style={styles.emptyText}>
-                  Aucune certification ajoutée
-                </Text>
-              </View>
-            )}
-          </View>
-        );
-      case "diplomes":
-        return (
-          <View style={styles.tableContainer}>
-            {user.diplomes && user.diplomes.length > 0 ? (
-              <DataTable>
-                <DataTable.Header>
-                  <DataTable.Title>Diplôme</DataTable.Title>
-                  <DataTable.Title>Établissement</DataTable.Title>
-                  <DataTable.Title>Année</DataTable.Title>
-                </DataTable.Header>
-                {user.diplomes.map((diplome, index) => (
-                  <DataTable.Row key={index}>
-                    <DataTable.Cell>{diplome.titre || "N/A"}</DataTable.Cell>
-                    <DataTable.Cell>
-                      {diplome.etablissement || "N/A"}
-                    </DataTable.Cell>
-                    <DataTable.Cell>{diplome.annee || "N/A"}</DataTable.Cell>
-                  </DataTable.Row>
-                ))}
-              </DataTable>
-            ) : (
-              <View style={styles.emptyContainer}>
-                <Ionicons name="school-outline" size={40} color="#ccc" />
-                <Text style={styles.emptyText}>Aucun diplôme ajouté</Text>
-              </View>
-            )}
-          </View>
-        );
-      default:
-        return null;
-    }
   };
 
   // Afficher le loading
@@ -375,21 +232,15 @@ const PersonalProfileScreen = () => {
     );
   }
 
-  // Afficher le profil utilisateur connecté
+  // Afficher le profil utilisateur connecté avec les trois sections
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Mon Profil</Text>
-          <TouchableOpacity
-            style={styles.logoutButton}
-            onPress={() => setLogoutDialogVisible(true)}
-          >
-            <Ionicons name="log-out-outline" size={20} color="#fff" />
-            <Text style={styles.logoutButtonText}>Déconnexion</Text>
-          </TouchableOpacity>
         </View>
 
+        {/* Section Image de profil et nom */}
         <View style={styles.profileImageContainer}>
           <Image
             source={{
@@ -398,286 +249,70 @@ const PersonalProfileScreen = () => {
             style={styles.profileImage}
           />
           <Text style={styles.userName}>{`${user.prenom} ${user.nom}`}</Text>
+          <Text style={styles.userEmail}>{user.email}</Text>
         </View>
 
-        {/* Biographie Section */}
-        <View style={styles.formContainer}>
-          <Card style={styles.card}>
-            <Card.Content>
-              <View style={styles.cardHeader}>
-                <Text style={styles.sectionTitle}>Biographie</Text>
-                <Ionicons name="book-outline" size={22} color="#1F3971" />
-              </View>
-              <Text style={styles.biographyText}>
-                {user.Biographie && user.Biographie !== "-"
-                  ? user.Biographie
-                  : "Aucune biographie disponible."}
+        {/* Menu des 3 sections */}
+        <View style={styles.menuContainer}>
+          {/* Section 1: Détails Profil */}
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={navigateToDetailsProfile}
+          >
+            <View style={styles.menuIconContainer}>
+              <Ionicons name="person" size={30} color="#fff" />
+            </View>
+            <View style={styles.menuTextContainer}>
+              <Text style={styles.menuTitle}>Détails Profil</Text>
+              <Text style={styles.menuDescription}>
+                Informations personnelles et coordonnées
               </Text>
-            </Card.Content>
-          </Card>
-
-          {/* CV Section */}
-          <Card style={styles.card}>
-            <Card.Content>
-              <View style={styles.cardHeader}>
-                <Text style={styles.sectionTitle}>Curriculum Vitae</Text>
-                <Ionicons
-                  name="document-text-outline"
-                  size={22}
-                  color="#1F3971"
-                />
-              </View>
-              {user.cv && user.cv !== "-" ? (
-                <TouchableOpacity style={styles.cvButton} onPress={openCV}>
-                  <Ionicons
-                    name="eye-outline"
-                    size={20}
-                    color="#fff"
-                    style={styles.btnIcon}
-                  />
-                  <Text style={styles.cvButtonText}>Voir mon CV</Text>
-                </TouchableOpacity>
-              ) : (
-                <Text style={styles.emptyText}>Aucun CV disponible.</Text>
-              )}
-            </Card.Content>
-          </Card>
-
-          <Text style={styles.sectionTitle}>Informations personnelles</Text>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Nom complet</Text>
-            <View style={styles.inputWithIcon}>
-              <Ionicons
-                name="person"
-                size={20}
-                color="#1F3971"
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={styles.input}
-                value={`${user.prenom} ${user.nom}`}
-                editable={false}
-              />
             </View>
-          </View>
+            <Ionicons name="chevron-forward" size={24} color="#1F3971" />
+          </TouchableOpacity>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Email</Text>
-            <View style={styles.inputWithIcon}>
-              <Ionicons
-                name="mail"
-                size={20}
-                color="#1F3971"
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={styles.input}
-                value={user.email}
-                editable={false}
-              />
+          {/* Section 2: Mon Parcours */}
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={navigateToParcours}
+          >
+            <View
+              style={[styles.menuIconContainer, { backgroundColor: "#2E7D32" }]}
+            >
+              <Ionicons name="trail-sign" size={30} color="#fff" />
             </View>
-          </View>
-
-          <Text style={styles.sectionTitle}>Coordonnées</Text>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Téléphone principal</Text>
-            <View style={styles.inputWithIcon}>
-              <Ionicons
-                name="call"
-                size={20}
-                color="#1F3971"
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={styles.input}
-                value={user.tel1 !== "-" ? user.tel1 : "Non spécifié"}
-                editable={false}
-              />
+            <View style={styles.menuTextContainer}>
+              <Text style={styles.menuTitle}>Mon Parcours</Text>
+              <Text style={styles.menuDescription}>
+                Expériences, certifications et diplômes
+              </Text>
             </View>
-          </View>
+            <Ionicons name="chevron-forward" size={24} color="#1F3971" />
+          </TouchableOpacity>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Téléphone secondaire</Text>
-            <View style={styles.inputWithIcon}>
-              <Ionicons
-                name="call-outline"
-                size={20}
-                color="#1F3971"
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={styles.input}
-                value={user.tel2 !== "-" ? user.tel2 : "Non spécifié"}
-                editable={false}
-              />
+          {/* Section 3: Déconnexion */}
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={navigateToDeconnexion}
+          >
+            <View
+              style={[styles.menuIconContainer, { backgroundColor: "#C62828" }]}
+            >
+              <Ionicons name="log-out" size={30} color="#fff" />
             </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Adresse</Text>
-            <View style={styles.inputWithIcon}>
-              <Ionicons
-                name="location"
-                size={20}
-                color="#1F3971"
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={styles.input}
-                value={user.adresse !== "-" ? user.adresse : "Non spécifiée"}
-                editable={false}
-                multiline={true}
-              />
+            <View style={styles.menuTextContainer}>
+              <Text style={styles.menuTitle}>Déconnexion</Text>
+              <Text style={styles.menuDescription}>
+                Se déconnecter de l'application
+              </Text>
             </View>
-          </View>
-
-          <Text style={styles.sectionTitle}>Réseaux sociaux</Text>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>LinkedIn</Text>
-            <View style={styles.inputWithIcon}>
-              <Ionicons
-                name="logo-linkedin"
-                size={20}
-                color="#1F3971"
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={styles.input}
-                value={user.linkedin !== "-" ? user.linkedin : "Non spécifié"}
-                editable={false}
-              />
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Facebook</Text>
-            <View style={styles.inputWithIcon}>
-              <Ionicons
-                name="logo-facebook"
-                size={20}
-                color="#1F3971"
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={styles.input}
-                value={user.facebook !== "-" ? user.facebook : "Non spécifié"}
-                editable={false}
-              />
-            </View>
-          </View>
-
-          {/* Tableau pour les expériences, certifications et diplômes */}
-          <Card style={styles.card}>
-            <Card.Content>
-              <View style={styles.cardHeader}>
-                <Text style={styles.sectionTitle}>Mon parcours</Text>
-                <Ionicons name="trail-sign-outline" size={22} color="#1F3971" />
-              </View>
-
-              <View style={styles.tabContainer}>
-                <TouchableOpacity
-                  style={[
-                    styles.tabButton,
-                    activeTab === "experiences" && styles.activeTabButton,
-                  ]}
-                  onPress={() => setActiveTab("experiences")}
-                >
-                  <Ionicons
-                    name="briefcase-outline"
-                    size={18}
-                    color={activeTab === "experiences" ? "#fff" : "#1F3971"}
-                  />
-                  <Text
-                    style={[
-                      styles.tabButtonText,
-                      activeTab === "experiences" && styles.activeTabButtonText,
-                    ]}
-                  >
-                    Expériences
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.tabButton,
-                    activeTab === "certifications" && styles.activeTabButton,
-                  ]}
-                  onPress={() => setActiveTab("certifications")}
-                >
-                  <Ionicons
-                    name="ribbon-outline"
-                    size={18}
-                    color={activeTab === "certifications" ? "#fff" : "#1F3971"}
-                  />
-                  <Text
-                    style={[
-                      styles.tabButtonText,
-                      activeTab === "certifications" &&
-                        styles.activeTabButtonText,
-                    ]}
-                  >
-                    Certifications
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.tabButton,
-                    activeTab === "diplomes" && styles.activeTabButton,
-                  ]}
-                  onPress={() => setActiveTab("diplomes")}
-                >
-                  <Ionicons
-                    name="school-outline"
-                    size={18}
-                    color={activeTab === "diplomes" ? "#fff" : "#1F3971"}
-                  />
-                  <Text
-                    style={[
-                      styles.tabButtonText,
-                      activeTab === "diplomes" && styles.activeTabButtonText,
-                    ]}
-                  >
-                    Diplômes
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {renderTabContent()}
-            </Card.Content>
-          </Card>
+            <Ionicons name="chevron-forward" size={24} color="#1F3971" />
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
       {/* Portail pour les alertes Material UI */}
       <Portal>
-        {/* Dialogue pour la déconnexion */}
-        <Dialog
-          visible={logoutDialogVisible}
-          onDismiss={() => setLogoutDialogVisible(false)}
-        >
-          <Dialog.Title>Déconnexion</Dialog.Title>
-          <Dialog.Content>
-            <Text>Êtes-vous sûr de vouloir vous déconnecter ?</Text>
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button
-              onPress={() => {
-                setLogoutDialogVisible(false);
-                handleLogout();
-              }}
-            >
-              Confirmer
-            </Button>
-            <Button onPress={() => setLogoutDialogVisible(false)}>
-              Annuler
-            </Button>
-          </Dialog.Actions>
-        </Dialog>
-
         {/* Dialogue pour la session expirée */}
         <Dialog
           visible={expiredSessionDialogVisible}
@@ -720,11 +355,10 @@ const PersonalProfileScreen = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#f9f9f9",
+    backgroundColor: "#f5f5f5",
   },
   container: {
     flex: 1,
-    backgroundColor: "#f9f9f9",
   },
   center: {
     flex: 1,
@@ -760,9 +394,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 15,
     backgroundColor: "#ffffff",
@@ -774,151 +405,69 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "bold",
     color: "#1F3971",
-  },
-  logoutButton: {
-    flexDirection: "row",
-    backgroundColor: "#1F3971",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    alignItems: "center",
-  },
-  logoutButtonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "bold",
-    marginLeft: 5,
+    textAlign: "center",
   },
   profileImageContainer: {
     alignItems: "center",
-    marginVertical: 30,
+    backgroundColor: "#fff",
+    paddingVertical: 30,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    elevation: 4,
+    marginBottom: 20,
   },
   profileImage: {
     width: 120,
     height: 120,
     borderRadius: 60,
-    marginBottom: 10,
+    borderWidth: 3,
+    borderColor: "#1F3971",
+    marginBottom: 15,
   },
   userName: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: "bold",
     color: "#1F3971",
   },
-  formContainer: {
+  userEmail: {
+    fontSize: 16,
+    color: "#666",
+    marginTop: 5,
+  },
+  menuContainer: {
     paddingHorizontal: 20,
     paddingBottom: 30,
   },
-  card: {
-    marginVertical: 15,
-    elevation: 2,
-    borderRadius: 10,
-  },
-  cardHeader: {
+  menuItem: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 10,
+    backgroundColor: "#fff",
+    borderRadius: 15,
+    padding: 15,
+    marginBottom: 15,
+    elevation: 2,
   },
-  biographyText: {
-    fontSize: 14,
-    color: "#555",
-    lineHeight: 20,
-    textAlign: "justify",
+  menuIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#1F3971",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  sectionTitle: {
+  menuTextContainer: {
+    flex: 1,
+    marginLeft: 15,
+  },
+  menuTitle: {
     fontSize: 16,
     fontWeight: "bold",
-    marginVertical: 10,
     color: "#1F3971",
   },
-  cvButton: {
-    flexDirection: "row",
-    backgroundColor: "#1F3971",
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 5,
-  },
-  cvButtonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  btnIcon: {
-    marginRight: 8,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  inputLabel: {
+  menuDescription: {
     fontSize: 14,
     color: "#666",
-    marginBottom: 5,
-  },
-  inputWithIcon: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#ddd",
-  },
-  inputIcon: {
-    marginRight: 10,
-  },
-  input: {
-    flex: 1,
-    fontSize: 14,
-    color: "#333",
-  },
-  tabContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginVertical: 15,
-  },
-  tabButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#1F3971",
-    flex: 1,
-    marginHorizontal: 5,
-    justifyContent: "center",
-  },
-  activeTabButton: {
-    backgroundColor: "#1F3971",
-  },
-  tabButtonText: {
-    fontSize: 12,
-    color: "#1F3971",
-    marginLeft: 5,
-  },
-  activeTabButtonText: {
-    color: "#fff",
-  },
-  tableContainer: {
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    padding: 10,
-    marginTop: 10,
-  },
-  emptyContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 30,
-  },
-  emptyText: {
-    marginTop: 10,
-    color: "#999",
-    fontSize: 14,
-    textAlign: "center",
+    marginTop: 3,
   },
 });
 

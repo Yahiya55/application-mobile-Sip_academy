@@ -7,7 +7,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Import du LoadingScreen
 import LoadingScreen from "../screens/LoadingScreen";
-
+import ClasseVirtuelleDetailsScreen from "../screens/ClasseVirtuelleDetailsScreen";
 
 // Mode Général (Non-connecté)
 import WelcomeScreen from "../screens/WelcomeScreen";
@@ -23,10 +23,13 @@ import SessionDetailsScreen from "../screens/SessionDetailsScreen";
 import ActualitesScreen from "../screens/ActualitesScreen";
 import ActualiteDetailsScreen from "../screens/ActualiteDetailsScreen";
 import VideoPlayerScreen from "../screens/VideoPlayerScreen";
-import VideoGalleryScreen from "../screens/VideoGalleryScreen"; // Nouvel import
+import VideoGalleryScreen from "../screens/VideoGalleryScreen";
 import SessionsScreen from "../screens/SessionsScreen";
 import ContactScreen from "../screens/ContactScreen";
 import PersonalProfileScreen from "../screens/PersonalProfileScreen";
+import DetailsProfilScreen from "../screens/DetailsProfilScreen";
+import ParcoursScreen from "../screens/ParcoursScreen";
+import DeconnexionScreen from "../screens/DeconnexionScreen";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -38,7 +41,7 @@ const { width } = Dimensions.get("window");
 const HomeStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="Accueil" component={HomeScreen} />
-    <Stack.Screen name="VideoGallery" component={VideoGalleryScreen} /> 
+    <Stack.Screen name="VideoGallery" component={VideoGalleryScreen} />
     <Stack.Screen name="VideoPlayer" component={VideoPlayerScreen} />
     <Stack.Screen name="Sessions" component={SessionsScreen} />
     <Stack.Screen name="Actualites" component={ActualitesScreen} />
@@ -67,7 +70,6 @@ const HomeStack = () => (
   </Stack.Navigator>
 );
 
-
 // Stack pour les formations - accessible pour invités et connectés
 const FormationsStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -93,6 +95,10 @@ const SessionsStack = () => (
         title: route.params?.session?.title || "Détails Session",
       })}
     />
+    <Stack.Screen
+      name="ClasseVirtuelleDetails"
+      component={ClasseVirtuelleDetailsScreen}
+    />
   </Stack.Navigator>
 );
 
@@ -107,6 +113,16 @@ const ActualitesStack = () => (
         title: route.params?.actualite?.title || "Détails Actualité",
       })}
     />
+  </Stack.Navigator>
+);
+
+// Nouvelle Stack pour le profil - accessible pour utilisateurs connectés
+const ProfileStack = () => (
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="ProfileScreen" component={PersonalProfileScreen} />
+    <Stack.Screen name="DetailsProfil" component={DetailsProfilScreen} />
+    <Stack.Screen name="Parcours" component={ParcoursScreen} />
+    <Stack.Screen name="Deconnexion" component={DeconnexionScreen} />
   </Stack.Navigator>
 );
 
@@ -187,8 +203,7 @@ const ConnectedTabNavigator = () => (
   <Tab.Navigator {...tabNavigatorOptions} initialRouteName="Home">
     <Tab.Screen name="Home" component={HomeStack} />
     <Tab.Screen name="Sessions" component={SessionsStack} />
-    
-    <Tab.Screen name="Mon Profil" component={PersonalProfileScreen} />
+    <Tab.Screen name="Mon Profil" component={ProfileStack} />
   </Tab.Navigator>
 );
 

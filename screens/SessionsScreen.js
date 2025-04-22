@@ -23,6 +23,7 @@ import {
   fetchUserSessionsWithProfileAPI,
   getMesSessions,
 } from "../service/InscriSessionService";
+import { getClasseVirtuelleDetails } from "../service/ClasseVirtuelleService";
 import {
   isAuthenticated,
   getCurrentUser,
@@ -189,6 +190,86 @@ const SessionsScreen = () => {
     };
   };
 
+  // Fonction pour extraire le jour/séance de la description
+  const extractSessionDay = (description) => {
+    if (!description) return "";
+
+    const dayMatch = description.match(/\[(.*?)\]/);
+    return dayMatch ? dayMatch[1] : "";
+  };
+
+  // Fonction pour formater la date et l'heure
+  const formatDateTime = (date, heureDebut, heureFin) => {
+    if (!date) return "";
+    return `${date} • ${heureDebut || ""} ${heureFin ? "- " + heureFin : ""}`;
+  };
+
+  // Fonction pour rendre une classe virtuelle dans la modal
+  const renderClasseVirtuelle = (item, index) => {
+    // Extraire les informations de la classe virtuelle
+    const sessionDay = extractSessionDay(item.description);
+    const dateTime = formatDateTime(item.date, item.heuredebut, item.heurefin);
+
+    return (
+      <View key={item.id.toString()} style={styles.classeVirtuelleItem}>
+        <Text style={styles.classeVirtuelleTitle}>
+          {sessionDay || item.titre || `Séance ${index + 1}`}
+        </Text>
+        <Text style={styles.classeVirtuelleDate}>{dateTime}</Text>
+
+        <View style={styles.linkButtons}>
+          {item.lienMeet && (
+            <TouchableOpacity
+              style={[styles.linkButton, styles.meetButton]}
+              onPress={() => openLink(item.lienMeet)}
+            >
+              <Ionicons name="videocam" size={16} color="#fff" />
+              <Text style={styles.linkButtonText}>Meet</Text>
+            </TouchableOpacity>
+          )}
+
+          {item.lienDrive && (
+            <TouchableOpacity
+              style={[styles.linkButton, styles.driveButton]}
+              onPress={() => openLink(item.lienDrive)}
+            >
+              <Ionicons name="folder" size={16} color="#fff" />
+              <Text style={styles.linkButtonText}>Drive</Text>
+            </TouchableOpacity>
+          )}
+
+          {item.lienGithub && (
+            <TouchableOpacity
+              style={[styles.linkButton, styles.githubButton]}
+              onPress={() => openLink(item.lienGithub)}
+            >
+              <Ionicons name="logo-github" size={16} color="#fff" />
+              <Text style={styles.linkButtonText}>GitHub</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Bouton pour accéder aux détails */}
+        <TouchableOpacity
+          style={styles.detailsButton}
+          onPress={() => {
+            setModalVisible(false); // Fermer la modal
+            navigation.navigate("ClasseVirtuelleDetails", {
+              classeVirtuelleId: item.id,
+              sessionTitre: selectedSessionTitle,
+            });
+          }}
+        >
+          <Text style={styles.detailsButtonText}>Détails</Text>
+        </TouchableOpacity>
+
+        {index < selectedClassesVirtuelles.length - 1 && (
+          <View style={styles.divider} />
+        )}
+      </View>
+    );
+  };
+
   const today = new Date().toISOString().split("T")[0];
 
   // Filtrer puis trier les sessions par date décroissante (plus récente en premier)
@@ -321,20 +402,6 @@ const SessionsScreen = () => {
         </View>
       </TouchableOpacity>
     );
-  };
-
-  // Fonction pour extraire le jour/séance de la description
-  const extractSessionDay = (description) => {
-    if (!description) return "";
-
-    const dayMatch = description.match(/\[(.*?)\]/);
-    return dayMatch ? dayMatch[1] : "";
-  };
-
-  // Fonction pour formater la date et l'heure
-  const formatDateTime = (date, heureDebut, heureFin) => {
-    if (!date) return "";
-    return `${date} • ${heureDebut || ""} ${heureFin ? "- " + heureFin : ""}`;
   };
 
   return (
@@ -472,79 +539,9 @@ const SessionsScreen = () => {
             </Text>
 
             <ScrollView style={styles.classesList}>
-              {selectedClassesVirtuelles.map((item, index) => {
-                // Extraire les informations de la classe virtuelle
-                const sessionDay = extractSessionDay(item.description);
-                const dateTime = formatDateTime(
-                  item.date,
-                  item.heuredebut,
-                  item.heurefin
-                );
-
-                return (
-                  <View
-                    key={item.id.toString()}
-                    style={styles.classeVirtuelleItem}
-                  >
-                    <Text style={styles.classeVirtuelleTitle}>
-                      {sessionDay || `Séance ${index + 1}`}
-                    </Text>
-                    <Text style={styles.classeVirtuelleDate}>{dateTime}</Text>
-
-                    <View style={styles.linkButtons}>
-                      {item.lienMeet && (
-                        <TouchableOpacity
-                          style={[styles.linkButton, styles.meetButton]}
-                          onPress={() => openLink(item.lienMeet)}
-                        >
-                          <Ionicons name="videocam" size={16} color="#fff" />
-                          <Text style={styles.linkButtonText}>Meet</Text>
-                        </TouchableOpacity>
-                      )}
-
-                      {item.lienDrive && (
-                        <TouchableOpacity
-                          style={[styles.linkButton, styles.driveButton]}
-                          onPress={() => openLink(item.lienDrive)}
-                        >
-                          <Ionicons name="folder" size={16} color="#fff" />
-                          <Text style={styles.linkButtonText}>Drive</Text>
-                        </TouchableOpacity>
-                      )}
-
-                      {item.lienGithub && (
-                        <TouchableOpacity
-                          style={[styles.linkButton, styles.githubButton]}
-                          onPress={() => openLink(item.lienGithub)}
-                        >
-                          <Ionicons name="logo-github" size={16} color="#fff" />
-                          <Text style={styles.linkButtonText}>GitHub</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-
-                    {item.description && (
-                      <View style={styles.descriptionContainer}>
-                        <HTML
-                          source={{ html: item.description }}
-                          contentWidth={Dimensions.get("window").width - 80}
-                          tagsStyles={{
-                            p: {
-                              fontSize: 12,
-                              color: "#555",
-                              marginVertical: 4,
-                            },
-                          }}
-                        />
-                      </View>
-                    )}
-
-                    {index < selectedClassesVirtuelles.length - 1 && (
-                      <View style={styles.divider} />
-                    )}
-                  </View>
-                );
-              })}
+              {selectedClassesVirtuelles.map((item, index) =>
+                renderClasseVirtuelle(item, index)
+              )}
             </ScrollView>
 
             <TouchableOpacity
@@ -855,6 +852,21 @@ const styles = StyleSheet.create({
   detailsButtonText: {
     color: "#fff",
     fontSize: 14,
+    fontWeight: "bold",
+  },
+
+  /* Modifier le style du bouton détails pour les classes virtuelles */
+  classeVirtuelleDetailsButton: {
+    backgroundColor: "#203a72",
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 5,
+    alignSelf: "flex-start",
+    marginTop: 10,
+  },
+  classeVirtuelleDetailsButtonText: {
+    color: "#fff",
+    fontSize: 12,
     fontWeight: "bold",
   },
 });
