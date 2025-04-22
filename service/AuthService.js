@@ -1,6 +1,6 @@
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { API_BASE_URL1, API_BASE_URL2 } from "@env";
+import { API_BASE_URL1, API_BASE_URL2, API_BASE_URL3 } from "@env";
 
 /**
  * Authentification utilisateur via API_BASE_URL1
@@ -27,6 +27,16 @@ export const login = async (username, password) => {
     // Stocker le token utilisateur
     if (data.token) {
       await AsyncStorage.setItem("token", data.token);
+
+      // Stocker également les informations utilisateur
+      if (data.user) {
+        await AsyncStorage.setItem("user", JSON.stringify(data.user));
+      } else {
+        // Si data.user n'existe pas, vous devrez peut-être faire une requête séparée
+        // pour obtenir les informations de l'utilisateur à l'aide du token
+        const userInfo = await fetchUserInfo(data.token);
+        await AsyncStorage.setItem("user", JSON.stringify(userInfo));
+      }
     }
 
     return data;
@@ -36,6 +46,23 @@ export const login = async (username, password) => {
   }
 };
 
+// Fonction pour récupérer les informations de l'utilisateur si nécessaire
+const fetchUserInfo = async (token) => {
+  try {
+    const response = await axios.get(`${API_BASE_URL2}/me`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error(
+      "Erreur lors de la récupération des informations utilisateur:",
+      error
+    );
+    return null;
+  }
+};
 /**
  * Inscription utilisateur via API_BASE_URL2
  * @param {Object} userData - Données d'inscription utilisateur
@@ -76,6 +103,7 @@ export const register = async (userData) => {
 export const logout = async () => {
   try {
     await AsyncStorage.removeItem("token");
+    await AsyncStorage.removeItem("user");
     return true;
   } catch (error) {
     console.error("Erreur lors de la déconnexion:", error);
@@ -126,12 +154,33 @@ export const isAuthenticated = async () => {
  * Récupérer les informations de l'utilisateur connecté
  * @returns {Promise<Object|null>} - Objet utilisateur ou null
  */
+// Dans AuthService.js, assurez-vous que ces fonctions retournent les bonnes valeurs
 export const getCurrentUser = async () => {
   try {
-    const userString = await AsyncStorage.getItem("user");
-    return userString ? JSON.parse(userString) : null;
+    const userJSON = await AsyncStorage.getItem("user");
+    const user = userJSON ? JSON.parse(userJSON) : null;
+    console.log(
+      "getCurrentUser - Utilisateur récupéré depuis AsyncStorage:",
+      user
+    );
+    return user;
   } catch (error) {
-    console.error("Erreur de récupération des données utilisateur:", error);
+    console.error("Erreur lors de la récupération de l'utilisateur:", error);
     return null;
+  }
+};
+
+export const fetchUserProfileFromAPI = async (token) => {
+  try {
+    // Vérifiez cette URL - elle retourne une 404
+    const response = await axios.get(`${API_BASE_URL3}/api/users/me`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Erreur API profil:", error);
+    throw error;
   }
 };

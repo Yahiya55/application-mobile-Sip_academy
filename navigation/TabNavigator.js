@@ -7,7 +7,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Import du LoadingScreen
 import LoadingScreen from "../screens/LoadingScreen";
-import MesSessionsScreen from "../screens/MesSessionsScreen";
 
 
 // Mode Général (Non-connecté)
@@ -67,18 +66,7 @@ const HomeStack = () => (
     />
   </Stack.Navigator>
 );
-const MesSessionsStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="MesSessions" component={MesSessionsScreen} />
-    <Stack.Screen
-      name="SessionDetails"
-      component={SessionDetailsScreen}
-      options={({ route }) => ({
-        title: route.params?.session?.title || "Détails Session",
-      })}
-    />
-  </Stack.Navigator>
-);
+
 
 // Stack pour les formations - accessible pour invités et connectés
 const FormationsStack = () => (
@@ -199,30 +187,7 @@ const ConnectedTabNavigator = () => (
   <Tab.Navigator {...tabNavigatorOptions} initialRouteName="Home">
     <Tab.Screen name="Home" component={HomeStack} />
     <Tab.Screen name="Sessions" component={SessionsStack} />
-    <Tab.Screen
-      name="Mes Sessions"
-      component={MesSessionsStack}
-      options={{
-        tabBarIcon: ({ focused, color, size }) => {
-          const iconName = focused ? "bookmark" : "bookmark-outline";
-          return (
-            <View
-              style={[
-                styles.iconContainer,
-                focused && styles.activeIconContainer,
-              ]}
-            >
-              <Ionicons
-                name={iconName}
-                color={color}
-                size={focused ? 32 : 28}
-                style={styles.icon}
-              />
-            </View>
-          );
-        },
-      }}
-    />
+    
     <Tab.Screen name="Mon Profil" component={PersonalProfileScreen} />
   </Tab.Navigator>
 );
