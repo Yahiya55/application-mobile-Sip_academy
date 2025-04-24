@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   StatusBar,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { WebView } from "react-native-webview";
 import { useRoute, useNavigation } from "@react-navigation/native";
@@ -24,6 +25,7 @@ const VideoPlayerScreen = () => {
     videoDescription = "",
     videoAuthor = "",
     videoDate = "",
+    coverUrl = null,
   } = route.params || {};
 
   return (
@@ -32,12 +34,26 @@ const VideoPlayerScreen = () => {
       <View style={styles.videoContainer}>
         {loading && (
           <View style={styles.loadingContainer}>
+            {coverUrl ? (
+              <Image
+                source={{ uri: coverUrl }}
+                style={styles.coverImage}
+                resizeMode="contain"
+              />
+            ) : null}
             <ActivityIndicator size="large" color="#FFF" />
           </View>
         )}
 
         {error ? (
           <View style={styles.errorContainer}>
+            {coverUrl ? (
+              <Image
+                source={{ uri: coverUrl }}
+                style={styles.coverImageError}
+                resizeMode="contain"
+              />
+            ) : null}
             <Text style={styles.errorText}>
               Impossible de charger la vidéo. Veuillez réessayer.
             </Text>
@@ -108,6 +124,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "rgba(0,0,0,0.7)",
     zIndex: 1,
+  },
+  coverImage: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    opacity: 0.5,
+  },
+  coverImageError: {
+    width: "100%",
+    height: "50%",
+    opacity: 0.5,
+    marginBottom: 20,
   },
   errorContainer: {
     flex: 1,

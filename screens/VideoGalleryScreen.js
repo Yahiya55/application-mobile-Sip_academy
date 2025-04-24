@@ -8,8 +8,13 @@ import {
   ActivityIndicator,
   StatusBar,
   SafeAreaView,
+  Image,
 } from "react-native";
-import { fetchVideos, getVideoUrl } from "../service/VideoService";
+import {
+  fetchVideos,
+  getVideoUrl,
+  getVideoCoverUrl,
+} from "../service/VideoService";
 import Ionicons from "react-native-vector-icons/Ionicons";
 
 const VideoGalleryScreen = ({ navigation }) => {
@@ -41,6 +46,7 @@ const VideoGalleryScreen = ({ navigation }) => {
     }
 
     const videoUrl = getVideoUrl(video.video);
+    const coverUrl = video.cover ? getVideoCoverUrl(video.cover) : null;
     console.log("Navigation vers la vidéo:", videoUrl);
 
     navigation.navigate("VideoPlayer", {
@@ -49,24 +55,14 @@ const VideoGalleryScreen = ({ navigation }) => {
       videoDescription: video.description || "",
       videoAuthor: video.auteur || "Auteur inconnu",
       videoDate: video.date || "",
+      coverUrl: coverUrl,
     });
   };
 
-  // Cette fonction génère une couleur de fond aléatoire pour chaque miniature
-  const getRandomColor = () => {
-    const colors = [
-      "#3498db",
-      "#2ecc71",
-      "#e74c3c",
-      "#f39c12",
-      "#9b59b6",
-      "#1abc9c",
-    ];
-    return colors[Math.floor(Math.random() * colors.length)];
-  };
-
   const renderVideoItem = ({ item, index }) => {
-    const backgroundColor = getRandomColor();
+    // Vérifier si la vidéo a une image de couverture
+    const hasCover = item.cover && item.cover.trim() !== "";
+    const coverUrl = hasCover ? getVideoCoverUrl(item.cover) : null;
 
     return (
       <TouchableOpacity
@@ -74,15 +70,29 @@ const VideoGalleryScreen = ({ navigation }) => {
         onPress={() => handleVideoPress(item)}
       >
         <View style={styles.videoCard}>
-          {/* Placeholder coloré avec icône play au lieu d'une image */}
-          <View style={[styles.thumbnailContainer, { backgroundColor }]}>
+          {/* Image de couverture ou placeholder avec couleur de fond */}
+          <View style={styles.thumbnailContainer}>
+            {hasCover ? (
+              <Image
+                source={{ uri: coverUrl }}
+                style={styles.thumbnail}
+                resizeMode="cover"
+              />
+            ) : (
+              <View
+                style={[
+                  styles.thumbnailPlaceholder,
+                  { backgroundColor: "#3498db" },
+                ]}
+              >
+                <Text style={styles.thumbnailText}>
+                  {item.titre ? item.titre.charAt(0).toUpperCase() : "V"}
+                </Text>
+              </View>
+            )}
             <View style={styles.playButton}>
               <Ionicons name="play" size={30} color="white" />
             </View>
-            {/* Premier caractère du titre comme initiale sur le thumbnail */}
-            <Text style={styles.thumbnailText}>
-              {item.titre ? item.titre.charAt(0).toUpperCase() : "V"}
-            </Text>
           </View>
           <View style={styles.videoInfo}>
             <Text style={styles.videoTitle} numberOfLines={1}>
@@ -204,6 +214,17 @@ const styles = StyleSheet.create({
   thumbnailContainer: {
     height: 130,
     position: "relative",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f0f0f0", // Couleur de fond en cas d'échec de chargement
+  },
+  thumbnail: {
+    width: "100%",
+    height: "100%",
+  },
+  thumbnailPlaceholder: {
+    width: "100%",
+    height: "100%",
     justifyContent: "center",
     alignItems: "center",
   },

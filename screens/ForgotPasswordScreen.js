@@ -57,6 +57,14 @@ const ForgotPasswordScreen = () => {
   return (
     <View style={{ flex: 1, backgroundColor: "#1F3971" }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+        {/* Bouton Retour */}
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.navigate("LoginScreen")}
+        >
+          <Icon name="arrow-left" size={24} color="#fff" />
+        </TouchableOpacity>
+
         {/* Logo SIPACADEMY */}
         <View style={styles.header}>
           <Image
@@ -121,7 +129,9 @@ const ForgotPasswordScreen = () => {
             <Text style={styles.loginText}>
               Vous vous souvenez de votre mot de passe?
             </Text>
-            <TouchableOpacity onPress={() => navigation.navigate("Login")}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate("LoginScreen")}
+            >
               <Text style={styles.loginLink}> Se connecter</Text>
             </TouchableOpacity>
           </View>
@@ -139,6 +149,12 @@ const ForgotPasswordScreen = () => {
 };
 
 const styles = StyleSheet.create({
+  backButton: {
+    position: "absolute",
+    top: 40,
+    left: 20,
+    zIndex: 10,
+  },
   header: {
     justifyContent: "center",
     alignItems: "center",

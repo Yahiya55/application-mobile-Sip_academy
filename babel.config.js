@@ -9,7 +9,7 @@ module.exports = function (api) {
           moduleName: "@env",
           path: ".env",
           blacklist: null,
-          whitelist: null,
+          whitelist: ["API_BASE_URL", "RECAPTCHA_SECRET_KEY"],
           safe: false,
           allowUndefined: false,
         },

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { contactService } from "../service/ContactService";
+import Recaptcha from "react-native-google-recaptcha-v2";
 
 const ContactScreen = () => {
   const [showMessageForm, setShowMessageForm] = useState(false);
@@ -19,9 +20,10 @@ const ContactScreen = () => {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
-  const [isRobot, setIsRobot] = useState(false);
+  const [recaptchaToken, setRecaptchaToken] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const recaptchaRef = useRef(null);
 
   const validateFields = () => {
     let isValid = true;
@@ -46,19 +48,26 @@ const ContactScreen = () => {
       isValid = false;
     }
 
+    if (!recaptchaToken) {
+      newErrors.robot = "Veuillez confirmer que vous n'êtes pas un robot";
+      isValid = false;
+    }
+
     setErrors(newErrors);
     return isValid;
   };
 
-  const handleSubmit = async () => {
-    if (!isRobot) {
-      setErrors({
-        ...errors,
-        robot: "Veuillez confirmer que vous n'êtes pas un robot",
-      });
-      return;
+  const onRecaptchaVerify = (token) => {
+    setRecaptchaToken(token);
+    // Effacer l'erreur si elle existait
+    if (errors.robot) {
+      const newErrors = { ...errors };
+      delete newErrors.robot;
+      setErrors(newErrors);
     }
+  };
 
+  const handleSubmit = async () => {
     if (!validateFields()) {
       return;
     }
@@ -75,6 +84,7 @@ const ContactScreen = () => {
       datereponse: null,
       objetreponse: "",
       isRep: false,
+      recaptchaToken: recaptchaToken,
     };
 
     try {
@@ -84,7 +94,10 @@ const ContactScreen = () => {
       setPhone("");
       setEmail("");
       setMessage("");
-      setIsRobot(false);
+      setRecaptchaToken(null);
+      if (recaptchaRef.current) {
+        recaptchaRef.current.refresh(); // Réinitialiser le reCAPTCHA
+      }
       setErrors({});
       setShowMessageForm(false);
     } catch (error) {
@@ -306,23 +319,19 @@ const ContactScreen = () => {
                 <Text style={styles.errorText}>{errors.message}</Text>
               )}
 
-              {/* Case "Je ne suis pas un robot" */}
-              <TouchableOpacity
-                style={[
-                  styles.checkboxContainer,
-                  errors.robot ? styles.inputError : null,
-                ]}
-                onPress={() => setIsRobot(!isRobot)}
-              >
-                <Icon
-                  name={isRobot ? "checkbox-marked" : "checkbox-blank-outline"}
-                  size={24}
-                  color={isRobot ? "#1F3971" : "#999"}
+              {/* reCAPTCHA */}
+              <View style={styles.recaptchaContainer}>
+                <Recaptcha
+                  ref={recaptchaRef}
+                  siteKey="6LcywtkqAAAAADXieI2S4YD5nKmTv5ouDZW-LoXj
+"
+                  baseUrl="http://127.0.0.0"
+                  onVerify={onRecaptchaVerify}
+                  onExpire={() => setRecaptchaToken(null)}
+                  size="normal"
+                  style={styles.recaptcha}
                 />
-                <Text style={styles.checkboxLabel}>
-                  Je ne suis pas un robot
-                </Text>
-              </TouchableOpacity>
+              </View>
               {errors.robot && (
                 <Text style={styles.errorText}>{errors.robot}</Text>
               )}
@@ -455,19 +464,14 @@ const styles = StyleSheet.create({
     height: 120,
     alignItems: "flex-start",
   },
-  checkboxContainer: {
-    flexDirection: "row",
+  recaptchaContainer: {
     alignItems: "center",
-    backgroundColor: "#f5f5f5",
-    borderRadius: 50,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    marginBottom: 15,
+    marginBottom: 20,
+    height: 100,
   },
-  checkboxLabel: {
-    marginLeft: 10,
-    color: "#333",
-    fontSize: 16,
+  recaptcha: {
+    width: "100%",
+    height: 100,
   },
   submitButton: {
     backgroundColor: "#1F3971",

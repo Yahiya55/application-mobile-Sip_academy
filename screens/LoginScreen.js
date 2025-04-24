@@ -82,6 +82,14 @@ const LoginScreen = () => {
   return (
     <View style={{ flex: 1, backgroundColor: "#1F3971" }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+        {/* Bouton Retour */}
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.navigate("WelcomeScreen")}
+        >
+          <Icon name="arrow-left" size={24} color="#fff" />
+        </TouchableOpacity>
+
         {/* Logo */}
         <View style={styles.header}>
           <Image
@@ -184,6 +192,12 @@ const LoginScreen = () => {
 };
 
 const styles = StyleSheet.create({
+  backButton: {
+    position: "absolute",
+    top: 40,
+    left: 20,
+    zIndex: 10,
+  },
   header: {
     justifyContent: "center",
     alignItems: "center",

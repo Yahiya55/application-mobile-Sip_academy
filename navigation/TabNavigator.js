@@ -67,6 +67,11 @@ const HomeStack = () => (
         title: route.params?.session?.title || "Détails Session",
       })}
     />
+    <Stack.Screen
+      name="Contact"
+      component={ContactScreen}
+      options={{ headerShown: false }}
+    />
   </Stack.Navigator>
 );
 

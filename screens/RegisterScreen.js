@@ -27,7 +27,6 @@ const RegisterScreen = () => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] =
     useState(false);
-
   const navigation = useNavigation();
 
   const handleRegister = async () => {
@@ -44,16 +43,13 @@ const RegisterScreen = () => {
       setError("Tous les champs sont obligatoires.");
       return;
     }
-
     // Vérification si les mots de passe correspondent
     if (password !== confirmPassword) {
       setError("Les mots de passe ne correspondent pas.");
       return;
     }
-
     setIsLoading(true);
     setError("");
-
     // Création de l'objet utilisateur pour l'inscription
     const newUser = {
       email,
@@ -65,11 +61,9 @@ const RegisterScreen = () => {
       phone,
       options: role,
     };
-
     // Appel au service d'enregistrement
     const result = await register(newUser);
     setIsLoading(false);
-
     // Vérification du résultat de l'inscription
     if (result.success) {
       Alert.alert("Succès", result.message);
@@ -82,6 +76,14 @@ const RegisterScreen = () => {
   return (
     <View style={{ flex: 1, backgroundColor: "#1F3971" }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+        {/* Bouton Retour */}
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.navigate("WelcomeScreen")}
+        >
+          <Icon name="arrow-left" size={24} color="#fff" />
+        </TouchableOpacity>
+
         {/* Logo SIPACADEMY */}
         <View style={styles.header}>
           <Image
@@ -94,7 +96,6 @@ const RegisterScreen = () => {
         <View style={styles.formContainer}>
           <Text style={styles.title}>SIPACADEMY</Text>
           <Text style={styles.subtitle}>Créez votre compte</Text>
-
           {error ? (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>{error}</Text>
@@ -281,7 +282,9 @@ const RegisterScreen = () => {
           {/* Lien vers la page de connexion */}
           <View style={styles.loginContainer}>
             <Text style={styles.loginText}>Vous avez déjà un compte ?</Text>
-            <TouchableOpacity onPress={() => navigation.navigate("HomeScreen")}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate("LoginScreen")}
+            >
               <Text style={styles.loginLink}> Se connecter</Text>
             </TouchableOpacity>
           </View>
@@ -299,6 +302,12 @@ const RegisterScreen = () => {
 };
 
 const styles = StyleSheet.create({
+  backButton: {
+    position: "absolute",
+    top: 40,
+    left: 20,
+    zIndex: 10,
+  },
   header: {
     justifyContent: "center",
     alignItems: "center",

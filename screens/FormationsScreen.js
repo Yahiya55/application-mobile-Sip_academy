@@ -415,15 +415,22 @@ const FormationsScreen = () => {
 
             <CardDetails>
               <CardTitle>{item.titre}</CardTitle>
-
               {/* Display additional API data */}
               <FormationDetailsContainer>
                 <StatsText>Total Inscrits: {item.totalinscrit}</StatsText>
                 <StatsText>Nb Likes: {item.nblike}</StatsText>
                 <StatsText>Nb Avis: {item.nbavis}</StatsText>
-
-                {/* Render HTML description */}
-                <HTML source={{ html: item.desccourt }} contentWidth={width} />
+                {/* Render HTML description only if desccourt exists */}
+                {item.desccourt ? (
+                  <HTML
+                    source={{ html: item.desccourt }}
+                    contentWidth={width}
+                  />
+                ) : (
+                  <Text style={{ color: "#757575", fontSize: 14 }}>
+                    Aucune description disponible.
+                  </Text>
+                )}
               </FormationDetailsContainer>
             </CardDetails>
           </CardContainer>
