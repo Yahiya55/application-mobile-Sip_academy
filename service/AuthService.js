@@ -17,8 +17,7 @@ export const login = async (username, password) => {
       },
       body: JSON.stringify({ username, password }),
     });
-
-    const data = await response.json();
+       const data = await response.json();
 
     if (!response.ok) {
       throw new Error(data.detail || "Échec de la connexion");
@@ -27,15 +26,10 @@ export const login = async (username, password) => {
     // Stocker le token utilisateur
     if (data.token) {
       await AsyncStorage.setItem("token", data.token);
-
       // Stocker également les informations utilisateur
       if (data.user) {
         await AsyncStorage.setItem("user", JSON.stringify(data.user));
-      } else {
-        // Si data.user n'existe pas, vous devrez peut-être faire une requête séparée
-        // pour obtenir les informations de l'utilisateur à l'aide du token
-        const userInfo = await fetchUserInfo(data.token);
-        await AsyncStorage.setItem("user", JSON.stringify(userInfo));
+        
       }
     }
 
@@ -46,23 +40,7 @@ export const login = async (username, password) => {
   }
 };
 
-// Fonction pour récupérer les informations de l'utilisateur si nécessaire
-const fetchUserInfo = async (token) => {
-  try {
-    const response = await axios.get(`${API_BASE_URL2}/me`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    return response.data;
-  } catch (error) {
-    console.error(
-      "Erreur lors de la récupération des informations utilisateur:",
-      error
-    );
-    return null;
-  }
-};
+
 /**
  * Inscription utilisateur via API_BASE_URL2
  * @param {Object} userData - Données d'inscription utilisateur

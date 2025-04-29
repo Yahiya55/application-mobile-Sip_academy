@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { contactService } from "../service/ContactService";
-import Recaptcha from "react-native-google-recaptcha-v2";
+import { useNavigation } from "@react-navigation/native";
 
 const ContactScreen = () => {
   const [showMessageForm, setShowMessageForm] = useState(false);
@@ -320,7 +320,7 @@ const ContactScreen = () => {
               )}
 
               {/* reCAPTCHA */}
-              <View style={styles.recaptchaContainer}>
+           {/*    <View style={styles.recaptchaContainer}>
                 <Recaptcha
                   ref={recaptchaRef}
                   siteKey="6LcywtkqAAAAADXieI2S4YD5nKmTv5ouDZW-LoXj
@@ -335,7 +335,7 @@ const ContactScreen = () => {
               {errors.robot && (
                 <Text style={styles.errorText}>{errors.robot}</Text>
               )}
-
+ */}
               {/* Bouton Envoyer */}
               <TouchableOpacity
                 style={styles.submitButton}

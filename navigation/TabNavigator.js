@@ -1,21 +1,15 @@
-import { useState, useEffect } from "react";
 import { StyleSheet, View, Dimensions } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import Ionicons from "react-native-vector-icons/Ionicons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
-// Import du LoadingScreen
+import { useEffect } from "react";
+import * as Notifications from "expo-notifications";
 import LoadingScreen from "../screens/LoadingScreen";
 import ClasseVirtuelleDetailsScreen from "../screens/ClasseVirtuelleDetailsScreen";
-
-// Mode Général (Non-connecté)
 import WelcomeScreen from "../screens/WelcomeScreen";
 import LoginScreen from "../screens/LoginScreen";
 import RegisterScreen from "../screens/RegisterScreen";
 import ForgotPasswordScreen from "../screens/ForgotPasswordScreen";
-
-// Mode Connecté + Invité
 import HomeScreen from "../screens/HomeScreen";
 import FormationsScreen from "../screens/FormationsScreen";
 import FormationDetailsScreen from "../screens/FormationDetailsScreen";
@@ -30,14 +24,14 @@ import PersonalProfileScreen from "../screens/PersonalProfileScreen";
 import DetailsProfilScreen from "../screens/DetailsProfilScreen";
 import ParcoursScreen from "../screens/ParcoursScreen";
 import DeconnexionScreen from "../screens/DeconnexionScreen";
+import { useAuth } from "../context/AuthContext";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 const MainStack = createNativeStackNavigator();
-
 const { width } = Dimensions.get("window");
 
-// Stack pour l'écran d'accueil - accessible pour tous les utilisateurs
+// Stack pour l'écran d'accueil
 const HomeStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="Accueil" component={HomeScreen} />
@@ -75,7 +69,7 @@ const HomeStack = () => (
   </Stack.Navigator>
 );
 
-// Stack pour les formations - accessible pour invités et connectés
+// Stack pour les formations
 const FormationsStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="ListFormations" component={FormationsScreen} />
@@ -89,7 +83,7 @@ const FormationsStack = () => (
   </Stack.Navigator>
 );
 
-// Stack pour les sessions - accessible pour invités et connectés
+// Stack pour les sessions
 const SessionsStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="ListeSessions" component={SessionsScreen} />
@@ -107,7 +101,7 @@ const SessionsStack = () => (
   </Stack.Navigator>
 );
 
-// Stack pour les actualités - accessible pour invités et connectés
+// Stack pour les actualités
 const ActualitesStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="ListeActualites" component={ActualitesScreen} />
@@ -121,7 +115,7 @@ const ActualitesStack = () => (
   </Stack.Navigator>
 );
 
-// Nouvelle Stack pour le profil - accessible pour utilisateurs connectés
+// Stack pour le profil connecté
 const ProfileStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="ProfileScreen" component={PersonalProfileScreen} />
@@ -131,7 +125,7 @@ const ProfileStack = () => (
   </Stack.Navigator>
 );
 
-// Stack pour l'authentification - accessible uniquement en mode général
+// Stack pour l'authentification
 const AuthStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="WelcomeScreen" component={WelcomeScreen} />
@@ -144,10 +138,9 @@ const AuthStack = () => (
   </Stack.Navigator>
 );
 
+// Fonction pour obtenir les icônes des onglets
 const getTabBarIcon = (route, focused, color, size) => {
   let iconName;
-
-  // Définir des icônes pour chaque onglet
   if (route.name === "Home") {
     iconName = focused ? "home" : "home-outline";
   } else if (route.name === "Formations") {
@@ -160,10 +153,7 @@ const getTabBarIcon = (route, focused, color, size) => {
     iconName = focused ? "call" : "call-outline";
   } else if (route.name === "Mon Profil") {
     iconName = focused ? "person" : "person-outline";
-  } else if (route.name === "Login") {
-    iconName = focused ? "log-in" : "log-in-outline";
   }
-
   return (
     <View style={[styles.iconContainer, focused && styles.activeIconContainer]}>
       <Ionicons
@@ -176,6 +166,7 @@ const getTabBarIcon = (route, focused, color, size) => {
   );
 };
 
+// Options pour le Tab Navigator
 const tabNavigatorOptions = {
   screenOptions: ({ route }) => ({
     tabBarIcon: ({ focused, color, size }) =>
@@ -188,18 +179,15 @@ const tabNavigatorOptions = {
   }),
 };
 
-// Tab Navigator pour le mode INVITÉ - Définir comme composant React normal
-const GuestTabNavigator = ({ isGuestMode }) => (
+// Tab Navigator pour le mode INVITÉ
+const GuestTabNavigator = () => (
   <Tab.Navigator {...tabNavigatorOptions} initialRouteName="Home">
     <Tab.Screen name="Home" component={HomeStack} />
     <Tab.Screen name="Formations" component={FormationsStack} />
     <Tab.Screen name="Sessions" component={SessionsStack} />
     <Tab.Screen name="Actualites" component={ActualitesStack} />
     <Tab.Screen name="Contacts" component={ContactScreen} />
-    <Tab.Screen
-      name="Mon Profil"
-      component={isGuestMode ? PersonalProfileScreen : LoginScreen}
-    />
+    <Tab.Screen name="Mon Profil" component={PersonalProfileScreen} />
   </Tab.Navigator>
 );
 
@@ -212,67 +200,66 @@ const ConnectedTabNavigator = () => (
   </Tab.Navigator>
 );
 
-// Créer un composant séparé pour GuestTabs pour éviter la fonction inline
-const GuestTabs = ({ isGuestMode }) => (
-  <GuestTabNavigator isGuestMode={isGuestMode} />
-);
-
 // Composant principal de navigation
 export default function RootNavigator() {
-  const [userToken, setUserToken] = useState(null);
-  const [isGuestMode, setIsGuestMode] = useState(false); // Définir isGuestMode ici
-  const [isLoading, setIsLoading] = useState(true);
+  const { userToken, isLoading, checkToken } = useAuth();
 
-  // Récupération du token au chargement avec délai minimum
+  // Initialisation des notifications push
   useEffect(() => {
-    const checkToken = async () => {
+    const initializeNotifications = async () => {
       try {
-        const startTime = Date.now();
-        console.log("Vérification du token...");
-        const token = await AsyncStorage.getItem("token");
-        const guestMode = await AsyncStorage.getItem("guestMode");
-        setIsGuestMode(guestMode === "true"); // Mettre à jour isGuestMode selon guestMode
-        console.log("Token trouvé:", token ? "Oui" : "Non");
-        setUserToken(token);
-
-        // S'assurer que le LoadingScreen est affiché au moins 1 seconde
-        const elapsedTime = Date.now() - startTime;
-        const remainingTime = 1000 - elapsedTime;
-
-        if (remainingTime > 0) {
-          await new Promise((resolve) => setTimeout(resolve, remainingTime));
+        const { status } = await Notifications.requestPermissionsAsync();
+        if (status !== "granted") {
+          console.log("Permission refusée pour les notifications");
+          return;
         }
+        const token = (await Notifications.getExpoPushTokenAsync()).data;
+        console.log("Expo Push Token:", token);
+        Notifications.setNotificationHandler({
+          handleNotification: async () => ({
+            shouldShowAlert: true,
+            shouldPlaySound: true,
+            shouldSetBadge: false,
+          }),
+        });
+        const subscription = Notifications.addNotificationReceivedListener(
+          (notification) => {
+            console.log("Notification reçue :", notification);
+          }
+        );
+        const responseSubscription =
+          Notifications.addNotificationResponseReceivedListener((response) => {
+            console.log("Interaction avec la notification :", response);
+          });
+        return () => {
+          subscription.remove();
+          responseSubscription.remove();
+        };
       } catch (error) {
-        console.error("Erreur lors de la récupération du token:", error);
-      } finally {
-        setIsLoading(false);
+        console.error(
+          "Erreur lors de l'initialisation des notifications :",
+          error
+        );
       }
     };
-
-    checkToken();
+    initializeNotifications();
   }, []);
 
-  // Afficher le LoadingScreen pendant la vérification du token
   if (isLoading) {
     return <LoadingScreen />;
   }
 
-  // Structure principale de navigation
   return (
     <MainStack.Navigator screenOptions={{ headerShown: false }}>
       {userToken ? (
-        // Mode CONNECTÉ
         <MainStack.Screen
           name="ConnectedTabs"
           component={ConnectedTabNavigator}
         />
       ) : (
-        // Mode NON-CONNECTÉ - Choisir entre Auth ou Invité
         <>
           <MainStack.Screen name="Auth" component={AuthStack} />
-          <MainStack.Screen name="GuestTabs">
-            {(props) => <GuestTabs {...props} isGuestMode={isGuestMode} />}
-          </MainStack.Screen>
+          <MainStack.Screen name="GuestTabs" component={GuestTabNavigator} />
         </>
       )}
     </MainStack.Navigator>

@@ -12,32 +12,29 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { DevSettings } from "react-native";
 import { Dialog, Button, Snackbar } from "react-native-paper";
 import { CommonActions } from "@react-navigation/native";
+import { useAuth } from '../context/AuthContext';
 
 const DeconnexionScreen = () => {
   const navigation = useNavigation();
   const [logoutDialogVisible, setLogoutDialogVisible] = useState(false);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
+  const { setUserToken } = useAuth();
 
-  const reloadApp = () => {
-    console.log("Rechargement de l'application...");
-    DevSettings.reload();
-  };
+
 
   const handleLogout = async () => {
     try {
       console.log("Tentative de déconnexion...");
       await AsyncStorage.removeItem("token");
+      setUserToken("")
       console.log("Token supprimé!");
 
       // Afficher l'alerte de déconnexion réussie
       setSnackbarMessage("Déconnexion réussie");
       setSnackbarVisible(true);
-
       // Recharger l'application après un court délai
-      setTimeout(() => {
-        reloadApp();
-      }, 1500);
+
     } catch (err) {
       console.error("Erreur lors de la déconnexion:", err);
       setSnackbarMessage("Impossible de vous déconnecter. Veuillez réessayer.");

@@ -9,11 +9,12 @@ module.exports = function (api) {
           moduleName: "@env",
           path: ".env",
           blacklist: null,
-          whitelist: ["API_BASE_URL", "RECAPTCHA_SECRET_KEY"],
+          whitelist: null,
           safe: false,
           allowUndefined: false,
         },
       ],
+      "react-native-reanimated/plugin", // Ajout du plugin Reanimated
     ],
   };
 };

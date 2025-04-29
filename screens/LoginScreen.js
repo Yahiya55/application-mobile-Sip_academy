@@ -15,6 +15,7 @@ import { login } from "../service/AuthService.js";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import LoadingScreen from "./LoadingScreen";
 import { DevSettings } from "react-native"; // Import DevSettings pour le rechargement
+import { useAuth } from "../context/AuthContext";
 
 const LoginScreen = () => {
   const [username, setUsername] = useState("");
@@ -23,11 +24,16 @@ const LoginScreen = () => {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigation = useNavigation();
+  const { setUserToken } = useAuth();
 
   // Fonction pour recharger l'application
-  const reloadApp = () => {
-    console.log("Rechargement de l'application...");
-    DevSettings.reload(); // Méthode pour recharger complètement l'application
+  const decode = (token) => {
+    try {
+      return JSON.parse(atob(token.split(".")[1]));
+    } catch (e) {
+      console.warn("Erreur lors du décodage du token");
+      return null;
+    }
   };
 
   const handleLogin = async () => {
@@ -40,35 +46,14 @@ const LoginScreen = () => {
     setError("");
 
     try {
-      console.log("Tentative de connexion...");
       const response = await login(username, password);
-      console.log("Réponse de l'API:", response);
 
-      if (response && response.token) {
-        console.log("Token reçu, enregistrement...");
-        // Enregistrement du token
+      if (response?.token) {
         await AsyncStorage.setItem("token", response.token);
-        console.log("Token enregistré!");
-
-        // Informer l'utilisateur de la connexion réussie
-        Alert.alert("Connexion réussie", "Vous êtes connecté avec succès !", [
-          {
-            text: "OK",
-            onPress: () => {
-              // Recharger l'application entièrement
-              reloadApp();
-            },
-          },
-        ]);
-      } else {
-        throw new Error("Token invalide ou manquant");
+        setUserToken(response.token); // Update auth context
       }
     } catch (error) {
-      console.error("Erreur lors de la connexion:", error);
-      setError(
-        error.message ||
-          "Erreur lors de la connexion. Vérifiez vos identifiants."
-      );
+      setError(error.message);
     } finally {
       setIsLoading(false);
     }

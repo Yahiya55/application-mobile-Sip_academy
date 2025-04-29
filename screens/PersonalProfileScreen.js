@@ -8,12 +8,12 @@ import {
   Image,
   SafeAreaView,
   ScrollView,
+  Alert,
 } from "react-native";
 import { getUserById } from "../service/UserService";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { DevSettings } from "react-native";
 import { CommonActions } from "@react-navigation/native";
 import { Portal, Dialog, Button, Snackbar } from "react-native-paper";
 
@@ -25,13 +25,34 @@ const PersonalProfileScreen = () => {
   const [isGuestMode, setIsGuestMode] = useState(false);
 
   // États pour les alertes Material UI
-  const [guestModeDialogVisible, setGuestModeDialogVisible] = useState(false);
-  const [expiredSessionDialogVisible, setExpiredSessionDialogVisible] =
-    useState(false);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [expiredSessionDialogVisible, setExpiredSessionDialogVisible] =
+    useState(false);
 
   const navigation = useNavigation();
+
+  const checkGuestMode = async () => {
+    try {
+      const storedToken = await AsyncStorage.getItem("token");
+
+      if (storedToken) {
+        setToken(storedToken);
+        setIsGuestMode(false);
+      } else {
+        setIsGuestMode(true);
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error("Erreur lors de la vérification du mode:", err);
+      setIsGuestMode(true);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    checkGuestMode();
+  }, []);
 
   const decode = (token) => {
     try {
@@ -41,37 +62,6 @@ const PersonalProfileScreen = () => {
       return null;
     }
   };
-
-  useEffect(() => {
-    const fetchMode = async () => {
-      try {
-        const storedToken = await AsyncStorage.getItem("token");
-        const guestMode = await AsyncStorage.getItem("guestMode");
-
-        if (storedToken) {
-          setToken(storedToken);
-          setIsGuestMode(false);
-          return;
-        }
-
-        if (guestMode === "true") {
-          setIsGuestMode(true);
-          setToken(null);
-        } else {
-          setError("Token d'authentification manquant.");
-        }
-      } catch (err) {
-        console.error("Erreur lors de la récupération du mode:", err);
-        setError("Erreur lors de la vérification de l'authentification.");
-      } finally {
-        if (!token) {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchMode();
-  }, []);
 
   useEffect(() => {
     if (!token) return;
@@ -131,18 +121,30 @@ const PersonalProfileScreen = () => {
     navigation.navigate("Deconnexion");
   };
 
-  // Navigation correcte vers l'écran de connexion à partir du mode invité
+  // Navigation vers l'écran de connexion à partir du mode invité
   const navigateToLogin = () => {
-    navigation.dispatch(
-      CommonActions.reset({
-        index: 0,
-        routes: [{ name: "Auth" }],
-      })
+    // Utiliser l'Alert standard de React Native qui est plus fiable
+    Alert.alert(
+      "Connexion requise",
+      "Redirection vers la page de connexion...",
+      [
+        {
+          text: "OK",
+          onPress: () => {
+            navigation.dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [{ name: "Auth" }],
+              })
+            );
+          },
+        },
+      ],
+      { cancelable: false }
     );
   };
-
   // Afficher le loading
-  if (loading) {
+  if (loading && !isGuestMode) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#1F3971" />
@@ -151,8 +153,8 @@ const PersonalProfileScreen = () => {
     );
   }
 
-  // Afficher les erreurs
-  if (error) {
+  // Afficher les erreurs (uniquement si l'utilisateur n'est pas en mode invité)
+  if (error && !isGuestMode) {
     return (
       <View style={styles.center}>
         <Ionicons name="alert-circle-outline" size={50} color="#ff6b6b" />
@@ -170,47 +172,33 @@ const PersonalProfileScreen = () => {
   // Afficher le mode invité
   if (isGuestMode) {
     return (
-      <View style={styles.center}>
-        <Ionicons name="person-outline" size={50} color="#1F3971" />
-        <Text style={styles.noUserText}>
-          Connectez-vous pour accéder à plus d'informations sur votre profil.
-        </Text>
-        <TouchableOpacity
-          style={styles.retryButton}
-          onPress={() => setGuestModeDialogVisible(true)}
-        >
-          <Text style={styles.retryButtonText}>Se connecter</Text>
-        </TouchableOpacity>
-
-        {/* Dialogue pour mode invité */}
-        <Portal>
-          <Dialog
-            visible={guestModeDialogVisible}
-            onDismiss={() => setGuestModeDialogVisible(false)}
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Mon Profil</Text>
+        </View>
+        <View style={styles.center}>
+          <Ionicons name="person-outline" size={50} color="#1F3971" />
+          <Text style={styles.noUserText}>
+            Connectez-vous pour accéder à plus d'informations sur votre profil.
+          </Text>
+          <TouchableOpacity
+            style={styles.loginButton}
+            onPress={() => navigateToLogin()}
           >
-            <Dialog.Title>Connexion requise</Dialog.Title>
-            <Dialog.Content>
-              <Text>
-                Vous êtes en mode invité. Connectez-vous pour accéder à votre
-                profil.
-              </Text>
-            </Dialog.Content>
-            <Dialog.Actions>
-              <Button
-                onPress={() => {
-                  setGuestModeDialogVisible(false);
-                  navigateToLogin();
-                }}
-              >
-                Se connecter
-              </Button>
-              <Button onPress={() => setGuestModeDialogVisible(false)}>
-                Annuler
-              </Button>
-            </Dialog.Actions>
-          </Dialog>
-        </Portal>
-      </View>
+            <Text style={styles.loginButtonText}>Se connecter</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Snackbar pour l'alerte en mode invité */}
+        <Snackbar
+          visible={snackbarVisible}
+          onDismiss={() => setSnackbarVisible(false)}
+          duration={1500}
+          style={styles.snackbar}
+        >
+          {snackbarMessage}
+        </Snackbar>
+      </SafeAreaView>
     );
   }
 
@@ -357,6 +345,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f5f5f5",
   },
+  snackbar: {
+    backgroundColor: "#1F3971",
+    borderRadius: 8,
+  },
   container: {
     flex: 1,
   },
@@ -381,6 +373,8 @@ const styles = StyleSheet.create({
     marginTop: 10,
     color: "#333",
     fontSize: 16,
+    textAlign: "center",
+    marginHorizontal: 20,
   },
   retryButton: {
     marginTop: 20,
@@ -392,6 +386,19 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: "#fff",
     fontSize: 14,
+  },
+  loginButton: {
+    marginTop: 20,
+    backgroundColor: "#1F3971",
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+    elevation: 3,
+  },
+  loginButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
   },
   header: {
     paddingHorizontal: 20,

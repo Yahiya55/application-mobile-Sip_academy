@@ -5,6 +5,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import RootNavigator from "./navigation/RootNavigator";
 import { navigationRef } from "./RootNavigation";
 import { name as appName } from "./app.json";
+import AuthNavigator from "./AuthContext";
 
 // Ignorer l'avertissement spécifique lié à react-native-render-html
 LogBox.ignoreLogs([
@@ -15,7 +16,7 @@ LogBox.ignoreLogs([
 const App = () => {
   return (
     <NavigationContainer ref={navigationRef}>
-      <RootNavigator />
+      <AuthNavigator />
     </NavigationContainer>
   );
 };

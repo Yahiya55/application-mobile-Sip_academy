@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -12,8 +12,9 @@ import {
   Modal,
   ScrollView,
   Linking,
+  AppState,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import HTML from "react-native-render-html";
 import { getSessions } from "../service/SessionService";
@@ -32,6 +33,16 @@ import {
 import { API_BASE_URL2, API_BASE_URL3, IMAGE_BASE_URL2 } from "@env";
 import { formaterDate, formaterDateTime } from "../utils/dateFormater";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  registerForPushNotificationsAsync,
+  setupNotificationListeners,
+  subscribeToSessionNotifications,
+  unsubscribeFromSessionNotifications,
+  startPeriodicSessionCheck,
+  stopPeriodicSessionCheck,
+  checkForNewSessions,
+  simulateNewSession,
+} from "../service/NotificationService";
 
 const SessionsScreen = () => {
   const navigation = useNavigation();
@@ -44,12 +55,185 @@ const SessionsScreen = () => {
   const [userId, setUserId] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Nouveaux states pour la gestion des notifications
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [expoPushToken, setExpoPushToken] = useState("");
+  const appStateRef = useRef(AppState.currentState);
+  const sessionCheckIntervalRef = useRef(null);
+  const notificationListenerRef = useRef(null);
+  const lastFetchTimeRef = useRef(new Date());
+
   // Nouveaux states pour la gestion des classes virtuelles
   const [selectedClassesVirtuelles, setSelectedClassesVirtuelles] = useState(
     []
   );
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedSessionTitle, setSelectedSessionTitle] = useState("");
+
+  // Initialiser les notifications
+  // In your useEffect for notification setup
+  useEffect(() => {
+    const setupNotifications = async () => {
+      try {
+        console.log("Setting up notifications...");
+
+        // Enregistrer l'appareil pour les notifications push
+        const token = await registerForPushNotificationsAsync();
+        if (token) {
+          setExpoPushToken(token);
+        }
+
+        // Configurer les écouteurs de notifications
+        notificationListenerRef.current =
+          setupNotificationListeners(navigation);
+
+        // Vérifier si l'utilisateur est déjà abonné aux notifications
+        const subscribed = await AsyncStorage.getItem(
+          "subscribedToNewSessions"
+        );
+        setNotificationsEnabled(subscribed === "true");
+        console.log(`Notifications enabled: ${subscribed === "true"}`);
+
+        // Démarrer le service de vérification périodique
+        const intervalId = await startPeriodicSessionCheck();
+        sessionCheckIntervalRef.current = intervalId;
+
+        // Fix: Proper AppState event listener setup
+        const appStateSubscription = AppState.addEventListener(
+          "change",
+          handleAppStateChange
+        );
+
+        return () => {
+          if (notificationListenerRef.current) {
+            notificationListenerRef.current();
+          }
+
+          // Fix: Proper cleanup for AppState listener
+          appStateSubscription.remove();
+
+          if (sessionCheckIntervalRef.current) {
+            stopPeriodicSessionCheck(sessionCheckIntervalRef.current);
+          }
+        };
+      } catch (error) {
+        console.error("Error setting up notifications:", error);
+      }
+    };
+
+    setupNotifications();
+  }, []);
+
+  // Gérer les changements d'état de l'application
+  const handleAppStateChange = async (nextAppState) => {
+    if (
+      appStateRef.current.match(/inactive|background/) &&
+      nextAppState === "active"
+    ) {
+      console.log("App has come to the foreground!");
+      // L'application revient au premier plan, vérifier les nouvelles sessions
+      checkForNewSessionsOnForeground();
+    }
+    appStateRef.current = nextAppState;
+  };
+  const testNotification = async () => {
+    try {
+      // Vérifier si les notifications sont activées
+      if (!notificationsEnabled) {
+        Alert.alert(
+          "Notifications désactivées",
+          "Veuillez activer les notifications pour tester cette fonctionnalité"
+        );
+        return;
+      }
+
+      // Simuler une nouvelle session
+      const mockSession = await simulateNewSession();
+
+      if (mockSession) {
+        Alert.alert(
+          "Test envoyé",
+          "Une notification de test a été envoyée. Vérifiez le centre de notifications de votre appareil."
+        );
+
+        // Rafraîchir les données après un court délai
+        setTimeout(() => {
+          fetchData();
+        }, 2000);
+      }
+    } catch (error) {
+      console.error("Erreur lors du test de notification:", error);
+      Alert.alert("Erreur", "Impossible d'envoyer la notification de test");
+    }
+  };
+
+  // Fonction pour vérifier les nouvelles sessions quand l'app revient au premier plan
+  const checkForNewSessionsOnForeground = async () => {
+    try {
+      console.log("Checking for new sessions after app came to foreground");
+
+      // Récupérer le dernier temps de fetch
+      const storedLastFetchTime = await AsyncStorage.getItem(
+        "lastSessionFetchTime"
+      );
+      if (storedLastFetchTime) {
+        lastFetchTimeRef.current = new Date(storedLastFetchTime);
+      }
+
+      // Appeler la fonction de vérification depuis le service de notification
+      await checkForNewSessions(lastFetchTimeRef.current);
+
+      // Mettre à jour le dernier temps de fetch
+      lastFetchTimeRef.current = new Date();
+      await AsyncStorage.setItem(
+        "lastSessionFetchTime",
+        lastFetchTimeRef.current.toISOString()
+      );
+
+      // Rafraîchir les données de l'écran
+      fetchData();
+    } catch (error) {
+      console.error("Error checking for new sessions:", error);
+    }
+  };
+
+  // Activer/désactiver les notifications
+  const toggleNotifications = async () => {
+    try {
+      if (notificationsEnabled) {
+        // Désactiver les notifications
+        const success = await unsubscribeFromSessionNotifications();
+        if (success) {
+          setNotificationsEnabled(false);
+          Alert.alert(
+            "Notifications désactivées",
+            "Vous ne recevrez plus de notifications pour les nouvelles sessions."
+          );
+        }
+      } else {
+        // Activer les notifications
+        const success = await subscribeToSessionNotifications();
+        if (success) {
+          setNotificationsEnabled(true);
+          Alert.alert(
+            "Notifications activées",
+            "Vous recevrez des notifications pour les nouvelles sessions."
+          );
+        } else {
+          Alert.alert(
+            "Erreur",
+            "Vous devez être connecté pour recevoir des notifications."
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Error toggling notifications:", error);
+      Alert.alert(
+        "Erreur",
+        "Impossible de modifier les paramètres de notification."
+      );
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -128,6 +312,13 @@ const SessionsScreen = () => {
           }
         }
       }
+
+      // Mettre à jour le dernier temps de fetch
+      lastFetchTimeRef.current = new Date();
+      await AsyncStorage.setItem(
+        "lastSessionFetchTime",
+        lastFetchTimeRef.current.toISOString()
+      );
     } catch (error) {
       console.error("Erreur lors de la récupération des données:", error);
       setError(error.message);
@@ -140,6 +331,14 @@ const SessionsScreen = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Utiliser useFocusEffect pour rafraîchir les données lorsque l'écran est activé
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchData();
+      return () => {}; // cleanup function
+    }, [])
+  );
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -160,11 +359,19 @@ const SessionsScreen = () => {
     // Nettoyer l'URL en supprimant les espaces potentiels
     const cleanUrl = url.trim();
 
-    const canOpen = await Linking.canOpenURL(cleanUrl);
-    if (canOpen) {
-      await Linking.openURL(cleanUrl);
-    } else {
-      Alert.alert("Erreur", "Impossible d'ouvrir ce lien");
+    try {
+      const canOpen = await Linking.canOpenURL(cleanUrl);
+      if (canOpen) {
+        await Linking.openURL(cleanUrl);
+      } else {
+        Alert.alert("Erreur", "Impossible d'ouvrir ce lien");
+      }
+    } catch (error) {
+      console.error("Error opening link:", error);
+      Alert.alert(
+        "Erreur",
+        `Problème lors de l'ouverture du lien: ${error.message}`
+      );
     }
   };
 
@@ -406,7 +613,6 @@ const SessionsScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* Header Fixe */}
       <View style={styles.fixedHeader}>
         <Image
           source={{
@@ -414,9 +620,34 @@ const SessionsScreen = () => {
           }}
           style={styles.logo}
         />
-        <TouchableOpacity>
-          <Ionicons name="notifications" size={24} color="black" />
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          {isUserAuthenticated && (
+            <>
+              <TouchableOpacity
+                style={styles.notificationButton}
+                onPress={toggleNotifications}
+              >
+                <Ionicons
+                  name={
+                    notificationsEnabled
+                      ? "notifications"
+                      : "notifications-off-outline"
+                  }
+                  size={24}
+                  color={notificationsEnabled ? "#203a72" : "#666"}
+                />
+              </TouchableOpacity>
+
+              {/* Bouton de test des notifications - à supprimer en production */}
+              <TouchableOpacity
+                style={styles.testButton}
+                onPress={testNotification}
+              >
+                <Ionicons name="bug-outline" size={24} color="#203a72" />
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
       </View>
 
       {/* Titre "Sessions" */}
@@ -583,6 +814,18 @@ const styles = StyleSheet.create({
   },
   logo: { width: 120, height: 35, resizeMode: "contain" },
 
+  // Styles pour les boutons d'en-tête
+  headerButtons: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  notificationButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: "#f0f0f0",
+    marginLeft: 10,
+  },
+
   titleContainer: {
     flexDirection: "row",
     padding: 5,
@@ -604,6 +847,12 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 15,
     paddingHorizontal: 10,
+  },
+  testButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: "#f0f0f0",
+    marginLeft: 10,
   },
   categoryButton: {
     flex: 1,
