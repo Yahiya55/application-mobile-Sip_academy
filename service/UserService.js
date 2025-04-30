@@ -37,11 +37,11 @@ export const getUserById = async (userId, token) => {
 export const updateUserProfile = async (userId, formData, token) => {
   try {
     console.log(
-      `Envoi de la requête PUT à ${API_BASE_URL3}/updateprofile/${userId}`
+      `Envoi de la requête POST à ${API_BASE_URL3}/updateprofile/${userId}`
     );
     console.log("Token utilisé:", token);
 
-    const response = await axios.put(
+    const response = await axios.post(
       `${API_BASE_URL3}/updateprofile/${userId}`,
       formData,
       {

@@ -3,9 +3,8 @@ import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { getToken, onMessage } from "firebase/messaging";
 
-import { messaging } from "../firebaseConfig";
+import { app, initializeMessaging } from "../firebaseConfig";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -55,22 +54,33 @@ export const registerForPushNotificationsAsync = async () => {
       await AsyncStorage.setItem("expoPushToken", token);
       console.log("Expo Push Token:", token);
 
-      // Essayer d'obtenir le token FCM si Firebase est correctement initialisé
-      if (messaging) {
-        // La vapidKey est nécessaire uniquement pour les notifications Web
-        const fcmToken = await getToken(messaging, {
-          vapidKey:
-            "BPNfQYPGJ8P8IHK2qQASFJq91Oh_VXJbPLPFKqQyoOXoVfUQyHnt5c8NWOL7PHFPMr5PUcWR9FHD8t22e8uYyOw",
-        });
+      // Essayer d'obtenir le token FCM seulement sur le web
+      if (Platform.OS === "web") {
+        const messaging = await initializeMessaging();
+        if (messaging) {
+          try {
+            const { getToken } = await import("firebase/messaging");
+            // La vapidKey est nécessaire uniquement pour les notifications Web
+            const fcmToken = await getToken(messaging, {
+              vapidKey:
+                "BPNfQYPGJ8P8IHK2qQASFJq91Oh_VXJbPLPFKqQyoOXoVfUQyHnt5c8NWOL7PHFPMr5PUcWR9FHD8t22e8uYyOw",
+            });
 
-        // Stocker le token FCM localement
-        if (fcmToken) {
-          await AsyncStorage.setItem("fcmToken", fcmToken);
-          console.log("FCM Token:", fcmToken);
+            // Stocker le token FCM localement
+            if (fcmToken) {
+              await AsyncStorage.setItem("fcmToken", fcmToken);
+              console.log("FCM Token:", fcmToken);
 
-          // Envoyer les tokens au backend
-          await sendTokenToBackend(token, fcmToken);
+              // Envoyer les tokens au backend
+              await sendTokenToBackend(token, fcmToken);
+            }
+          } catch (error) {
+            console.error("Error getting FCM token:", error);
+          }
         }
+      } else {
+        // Pour les plateformes natives, on n'utilise que le token Expo
+        await sendTokenToBackend(token, null);
       }
     } catch (error) {
       console.error("Error getting push tokens:", error);
@@ -130,9 +140,7 @@ export const subscribeToSessionNotifications = async () => {
       return false;
     }
 
-    // Ici, vous utiliseriez une fonction FCM pour s'abonner à un topic,
-    // comme messaging.subscribeToTopic('newSessions')
-    // Pour Expo, nous allons simuler cet abonnement
+    // Utiliser AsyncStorage pour simuler l'abonnement
     await AsyncStorage.setItem("subscribedToNewSessions", "true");
 
     // Vérifier immédiatement s'il y a de nouvelles sessions
@@ -257,27 +265,40 @@ export const setupNotificationListeners = (navigation) => {
       }
     });
 
-  // Écouter les messages FCM si Firebase est correctement initialisé
+  // Écouter les messages FCM uniquement sur le web
   let messageUnsubscribe = () => {};
-  if (messaging) {
-    messageUnsubscribe = onMessage(messaging, (message) => {
-      console.log("New FCM message:", message);
 
-      // Convertir le message FCM en notification locale
-      if (message.notification) {
-        scheduleLocalNotification(
-          message.notification.title,
-          message.notification.body
-        );
+  if (Platform.OS === "web") {
+    (async () => {
+      const messaging = await initializeMessaging();
+      if (messaging) {
+        try {
+          const { onMessage } = await import("firebase/messaging");
+          messageUnsubscribe = onMessage(messaging, (message) => {
+            console.log("New FCM message:", message);
+
+            // Convertir le message FCM en notification locale
+            if (message.notification) {
+              scheduleLocalNotification(
+                message.notification.title,
+                message.notification.body
+              );
+            }
+          });
+        } catch (error) {
+          console.error("Error setting up FCM message listener:", error);
+        }
       }
-    });
+    })();
   }
 
   // Retourner une fonction pour nettoyer les abonnements
   return () => {
     foregroundSubscription.remove();
     responseSubscription.remove();
-    // Pas besoin de nettoyer messageUnsubscribe car ce n'est pas une fonction remove()
+    if (typeof messageUnsubscribe === "function") {
+      messageUnsubscribe();
+    }
   };
 };
 
@@ -310,6 +331,7 @@ export const stopPeriodicSessionCheck = (intervalId) => {
     console.log("Periodic session check stopped");
   }
 };
+
 export const simulateNewSession = async () => {
   try {
     console.log("Simulation d'une nouvelle session détectée");

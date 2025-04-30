@@ -141,7 +141,6 @@ const DetailsProfilScreen = ({ route }) => {
   };
 
   // Envoyer les modifications au serveur en utilisant le service importé
-  // Envoyer les modifications au serveur en utilisant le service importé
   const saveChanges = async () => {
     if (!validateForm()) return;
     try {
@@ -158,22 +157,25 @@ const DetailsProfilScreen = ({ route }) => {
 
       // Création du FormData pour l'envoi
       const data = new FormData();
-      data.append("prenom", formData.prenom);
-      data.append("nom", formData.nom);
-      data.append("phone1", formData.phone);
-      data.append("phone2", formData.phone1);
-      data.append("Linkedin", formData.Linkedin);
-      data.append("Facebook", formData.Facebook);
-      data.append("adresse", formData.adresse);
-      data.append("biographie", formData.biographie);
+
+      // Assurez-vous que tous les champs sont envoyés correctement
+      data.append("prenom", formData.prenom.trim());
+      data.append("nom", formData.nom.trim());
+      data.append("phone1", formData.phone.trim() || "-");
+      data.append("phone2", formData.phone1.trim() || "-");
+      data.append("Linkedin", formData.Linkedin.trim() || "-");
+      data.append("Facebook", formData.Facebook.trim() || "-");
+      data.append("adresse", formData.adresse.trim() || "-");
+      data.append("biographie", formData.biographie.trim() || "-");
 
       // Ajouter le mot de passe seulement s'il est défini
       if (formData.password && formData.password.trim() !== "") {
-        data.append("password", formData.password);
+        data.append("password", formData.password.trim());
       }
 
       // Ajout de la photo de profil si modifiée
       if (logoFile) {
+        // S'assurer que tous les champs nécessaires pour le fichier sont définis
         const fileInfo = {
           uri: logoFile.uri,
           type: logoFile.mimeType || "image/jpeg",
@@ -192,19 +194,23 @@ const DetailsProfilScreen = ({ route }) => {
         data.append("cv", fileInfo);
       }
 
-      // Affichage des données pour le débogage
+      // Debug: Affichage des données avant envoi
       console.log(
         "FormData à envoyer:",
-        JSON.stringify(Object.fromEntries(data._parts))
+        JSON.stringify(Array.from(data._parts))
       );
 
-      // Appel du service updateUserProfile avec les paramètres appropriés
-      const updatedUser = await updateUserProfile(user.id, data, token);
+      try {
+        const updatedUser = await updateUserProfile(user.id, data, token);
 
-      // Mise à jour de l'utilisateur en local
-      setUser(updatedUser);
-      setEditMode(false);
-      Alert.alert("Succès", "Votre profil a été mis à jour avec succès");
+        // Mise à jour de l'utilisateur en local
+        setUser(updatedUser.user || updatedUser);
+        setEditMode(false);
+        Alert.alert("Succès", "Votre profil a été mis à jour avec succès");
+      } catch (error) {
+        console.error("Erreur lors de l'appel API:", error);
+        throw error; // Relancer l'erreur pour la gestion globale
+      }
     } catch (error) {
       console.error("Erreur détaillée:", error);
       if (error.response) {
@@ -219,6 +225,7 @@ const DetailsProfilScreen = ({ route }) => {
       setLoading(false);
     }
   };
+
   // Basculer entre mode lecture et mode édition
   const toggleEditMode = () => {
     if (editMode) {
