@@ -477,20 +477,38 @@ const SessionsScreen = () => {
     );
   };
 
-  const today = new Date().toISOString().split("T")[0];
+  const now = new Date();
+  const today = now.toISOString().split("T")[0]; // just the date part "YYYY-MM-DD"
 
-  // Filtrer puis trier les sessions par date décroissante (plus récente en premier)
+  // Filter and sort sessions
   const upcomingSessions = sessions
-    .filter(
-      (session) => session.starttime && session.starttime.split("T")[0] > today
-    )
-    .sort((a, b) => new Date(a.starttime) - new Date(b.starttime)); // Date croissante pour prochaines sessions
+    .filter((session) => {
+      // Vérifier si la session a un endtime valide
+      if (!session.endtime) {
+        // Si pas d'endtime, utiliser starttime comme critère
+        return session.starttime && session.starttime.split("T")[0] >= today;
+      }
 
+      // Si la session a un endtime, vérifier s'il est dans le futur
+      // Une session est considérée "à venir" si sa date de fin n'est pas encore passée
+      return new Date(session.endtime) >= now;
+    })
+    .sort((a, b) => new Date(a.starttime) - new Date(b.starttime)); // Tri par date croissante
+
+  // Sessions passées : les sessions dont la date de fin (endtime) est dans le passé
   const pastSessions = sessions
-    .filter(
-      (session) => session.starttime && session.starttime.split("T")[0] <= today
-    )
-    .sort((a, b) => new Date(b.starttime) - new Date(a.starttime)); // Date décroissante pour sessions passées
+    .filter((session) => {
+      // Vérifier si la session a un endtime valide
+      if (!session.endtime) {
+        // Si pas d'endtime, utiliser starttime comme critère
+        return session.starttime && session.starttime.split("T")[0] < today;
+      }
+
+      // Si la session a un endtime, vérifier s'il est dans le passé
+      // Une session est considérée "passée" seulement si sa date de fin est déjà passée
+      return new Date(session.endtime) < now;
+    })
+    .sort((a, b) => new Date(b.starttime) - new Date(a.starttime));
 
   // Selon la catégorie sélectionnée, on affiche les sessions correspondantes
   let filteredSessions = [];

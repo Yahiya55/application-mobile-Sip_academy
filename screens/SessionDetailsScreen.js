@@ -60,6 +60,12 @@ const SessionDetailsScreen = () => {
           style={styles.logo}
         />
         <View style={styles.iconsContainer}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+          >
+            <Ionicons name="arrow-back" size={24} color="#203a72" />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton}>
             <Ionicons name="cart-outline" size={24} color="black" />
           </TouchableOpacity>
@@ -206,6 +212,10 @@ const styles = StyleSheet.create({
     height: 60,
     borderBottomWidth: 1,
     borderBottomColor: "#ddd",
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   logo: {
     width: 120,

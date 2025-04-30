@@ -36,6 +36,7 @@ export const getClasseVirtuelleDetails = async (id) => {
  * @param {number} sessionId - L'ID de la session
  * @returns {Promise} - Liste des classes virtuelles de la session
  */
+
 export const getClassesVirtuellesBySession = async (sessionId) => {
   try {
     // Récupérer le token d'authentification
@@ -44,13 +45,13 @@ export const getClassesVirtuellesBySession = async (sessionId) => {
     // Configurer les headers avec le token si disponible
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
+    // Construire l'URL de l'API en injectant l'ID de session
+    const url = `${API_BASE_URL}/classeVirtuelleSession/${sessionId}`;
+
     // Effectuer la requête API
-    const response = await axios.get(
-      `${API_BASE_URL3}/session/${sessionId}/classesVirtuelles`,
-      {
-        headers,
-      }
-    );
+    const response = await axios.get(url, {
+      headers,
+    });
 
     // Retourner les données de la réponse
     return response.data;
